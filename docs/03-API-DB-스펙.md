@@ -54,6 +54,7 @@ erDiagram
         varchar extractor_type
         boolean usable_now
         varchar status
+        timestamptz used_at
         timestamptz created_at
     }
     devices {
@@ -127,6 +128,7 @@ CREATE TABLE coupons (
   extractor_type VARCHAR(20) NOT NULL CHECK (extractor_type IN ('sender_specific', 'generic_regex', 'llm')), -- 'llm'은 향후 확장용, MVP에서는 미사용
   usable_now BOOLEAN NOT NULL,
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'expired', 'used', 'dismissed')),
+  used_at TIMESTAMPTZ,                     -- 사용 완료 표시 시각. MVP는 컬럼만 선반영하고 UI/API는 3단계 베타에서 활성화 (00번 문서 결정 #3)
   created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX idx_coupons_user_status ON coupons(user_id, status, expiry_date);
@@ -154,12 +156,12 @@ CREATE TABLE notifications (
 CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_status = 'pending';
 ```
 
-> 규칙 필터 관리 테이블(`filter_domains`, `filter_keywords`)과 캐시 테이블(`coupon_pattern_cache`)은 02번 문서에 정의되어 있다.
+> 규칙 필터 관리 테이블(`filter_domains`, `filter_keywords`)은 02번 문서에 정의되어 있다. LLM 호출 결과를 재사용하던 `coupon_pattern_cache`는 MVP에서 LLM을 쓰지 않으므로 제거했다.
 
 ### 설계 노트
 - `processed_mails.subject`, `sender`만 저장하고 본문은 저장하지 않는다 — 원본 설계의 "메일 원문 미저장" 원칙을 스키마 레벨에서 강제.
-- 다중 디바이스 지원을 `devices` 테이블에서 기본 반영했다 (00번 문서 Open Question #3). 정책 미정이므로 `NotificationService`가 "사용자의 모든 활성 디바이스에 발송" 방식으로 우선 구현하고, 추후 최신 디바이스만 발송하는 정책으로 쉽게 전환 가능하도록 설계.
-- `coupons.status`에 `used`, `dismissed`를 미리 반영해 00번 문서 Open Question #4(쿠폰 사용 추적)에 대비.
+- 다중 디바이스 발송은 **사용자의 모든 활성 디바이스에 발송**하는 정책으로 확정했다 (00번 문서 결정 #2). `NotificationService`는 `devices`에서 해당 사용자의 활성 레코드를 전부 조회해 각각 `notifications` 레코드를 만든다. 무효 토큰과 90일 미접속 디바이스는 `04-푸시알림.md`의 수명주기 정책으로 정리되므로 별도 상한은 두지 않는다.
+- `coupons.status`의 `used`/`dismissed`와 `used_at` 컬럼은 쿠폰 사용 추적용으로 스키마에만 선반영한 것이다 (00번 문서 결정 #3). MVP(1~2단계)에서는 쓰지 않고 3단계 베타에서 `PATCH /coupons/:id`와 함께 활성화한다 — 나중에 컬럼을 추가하는 마이그레이션을 피하려는 목적.
 
 ## REST API 명세
 
@@ -182,8 +184,8 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 | --- | --- | --- | --- | --- |
 | GET | `/coupons?status=active&sort=expiry_asc` | 쿠폰 목록 조회 | 쿼리 파라미터 | `{ coupons: Coupon[] }` |
 | GET | `/coupons/:id` | 쿠폰 상세 조회 | - | `Coupon` |
-| PATCH | `/coupons/:id` | 쿠폰 상태 변경 (사용함/숨김 표시) | `{ status: 'used' \| 'dismissed' }` | `200` |
-| POST | `/coupons/:id/feedback` | 오탐지 신고 (베타) | `{ isAccurate: boolean }` | `204` |
+| PATCH | `/coupons/:id` | 쿠폰 상태 변경 (사용함/숨김 표시) — **3단계 베타에서 활성화** | `{ status: 'used' \| 'dismissed' }` | `200` |
+| POST | `/coupons/:id/feedback` | 오탐지 신고 — **3단계 베타 필수** (정확도 측정의 유일한 실측 수단, 02번 문서 참고) | `{ isAccurate: boolean }` | `204` |
 
 ### 공통 사항
 - 모든 엔드포인트는 `Authorization: Bearer <session_jwt>` 필요 (앱 자체 로그인 세션, 메일 OAuth 토큰과는 별개)
