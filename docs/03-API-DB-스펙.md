@@ -50,7 +50,8 @@ erDiagram
         varchar discount
         date expiry_date
         text conditions
-        numeric confidence
+        varchar extractor_id
+        varchar extractor_type
         boolean usable_now
         varchar status
         timestamptz created_at
@@ -109,7 +110,7 @@ CREATE TABLE processed_mails (
   sender VARCHAR(255) NOT NULL,
   subject VARCHAR(998),                    -- RFC 5322 제목 길이 제한
   received_at TIMESTAMPTZ NOT NULL,
-  filter_result VARCHAR(20) NOT NULL CHECK (filter_result IN ('passed', 'filtered_out', 'llm_pending', 'llm_failed')),
+  filter_result VARCHAR(20) NOT NULL CHECK (filter_result IN ('passed', 'filtered_out', 'extraction_failed')), -- MVP: LLM 미사용이므로 'llm_pending'/'llm_failed' 대신 'extraction_failed'(만료일 파싱 실패) 사용
   processed_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(mail_account_id, provider_message_id)  -- 중복 처리 방지 핵심 제약
 );
@@ -122,9 +123,9 @@ CREATE TABLE coupons (
   discount VARCHAR(100),
   expiry_date DATE,
   conditions TEXT,
-  confidence NUMERIC(3,2) NOT NULL,
+  extractor_id VARCHAR(50) NOT NULL,       -- 예: 'coupang_v1', 'generic_v1' (어떤 파서가 추출했는지, 신뢰도의 대리 지표)
+  extractor_type VARCHAR(20) NOT NULL CHECK (extractor_type IN ('sender_specific', 'generic_regex', 'llm')), -- 'llm'은 향후 확장용, MVP에서는 미사용
   usable_now BOOLEAN NOT NULL,
-  llm_reason TEXT,                         -- 운영자 검토용, 앱에 노출 안 함
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'expired', 'used', 'dismissed')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
