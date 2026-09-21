@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# React Native / iOS / Android
+ios/Pods/
+ios/build/
+android/app/build/
+android/.gradle/
+*.keystore
+!debug.keystore
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
