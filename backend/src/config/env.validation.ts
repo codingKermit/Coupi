@@ -37,6 +37,8 @@ export const envSchema = z.object({
   PUBSUB_PUSH_SA_EMAIL: z.string().optional(),
   /** OIDC 토큰의 audience. 보통 push 엔드포인트 URL이다. */
   PUBSUB_PUSH_AUDIENCE: z.string().optional(),
+  /** Cloud Tasks가 워커를 호출할 때 쓸 서비스 계정. 없으면 PUBSUB_PUSH_SA_EMAIL을 쓴다. */
+  TASKS_INVOKER_SA_EMAIL: z.string().optional(),
 
   // Cloud Tasks 큐 (docs/05-백엔드아키텍처.md)
   CLOUD_TASKS_QUEUE_PUSH_DISPATCH: z.string().min(1).default('push-dispatch'),

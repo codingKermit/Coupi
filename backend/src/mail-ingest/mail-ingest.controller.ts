@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, Logger, Post, UseGuards } from '@nestjs/common';
 
 import { MailIngestService } from './mail-ingest.service';
-import { PubSubPushGuard } from './pubsub-push.guard';
-import { PubSubPushDto } from './dto/pubsub-push.dto';
+import { PubSubPushGuard } from '../common/messaging/pubsub-push.guard';
+import { PubSubPushDto } from '../common/messaging/dto/pubsub-push.dto';
 import { decodePubSubData } from '../common/types/messages';
 import type { MailIngestMessage } from '../common/types/messages';
 

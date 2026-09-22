@@ -5,12 +5,12 @@ import { CouponClassifierModule } from '../coupon-classifier/coupon-classifier.m
 import { GmailWebhookController } from './gmail-webhook.controller';
 import { MailIngestController } from './mail-ingest.controller';
 import { MailIngestService } from './mail-ingest.service';
-import { PubSubPushGuard } from './pubsub-push.guard';
+
 
 @Module({
   imports: [AuthModule, CouponClassifierModule],
   controllers: [GmailWebhookController, MailIngestController],
-  providers: [MailIngestService, PubSubPushGuard],
+  providers: [MailIngestService],
   exports: [MailIngestService],
 })
 export class MailIngestModule {}

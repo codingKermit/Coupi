@@ -77,8 +77,8 @@
 - [x] 범용 정규식 파서(`GenericRegexExtractor`) 구현 (할인율/만료일/조건/스팸 키워드 패턴) — 만료일 연도 추론과 오파싱 방어 포함
 - [ ] 초기 지원 발신자별 전용 파서 구현 (위 집계로 확정한 8곳 기준, `docs/02-쿠폰판별로직.md` "초기 지원 발신자 선정 절차")
 - [x] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류) — `ValidityCheckerService`, KST 기준
-- [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업 — 판별 결과 반환까지 구현, DB 기록은 메일 수집 핸들러 연결 시
-- [ ] 만료 임박 리마인더 구현 — 쿠폰 생성 시점에 Cloud Tasks `schedule_time`으로 예약 (일일 전체 스캔 배치 불필요, `docs/05-백엔드아키텍처.md`)
+- [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업 — DB 기록은 구현 완료(`CouponClassifyService`가 `processed_mails.filter_result` 갱신), 주간 리뷰 절차·리포트는 미구현
+- [ ] 만료 임박 리마인더 구현 — 쿠폰 생성 시점 예약까지 완료(`expiryReminderTime`, Cloud Tasks `schedule_time`). 실제 발송은 `/internal/expiry-reminder` 핸들러(NotificationService)에서 처리 예정
 
 **End-to-end 확인 (1단계 완료 기준)**
 - [ ] 테스트 Gmail 계정으로 실제 프로모션 메일 수신 → `coupons` 레코드 생성까지 확인
@@ -146,3 +146,4 @@
 | 2026-09-22 | 1단계 착수 — `backend/` NestJS+TypeScript 골격(모듈 9개, 환경변수 zod 검증, health 엔드포인트, Prisma 스키마), `infra/terraform/` GCP 인프라 코드, `docker-compose.yml` 로컬 환경, README 3종 작성. 빌드와 부팅 확인 완료(DB 연결에서만 실패 — 로컬 PostgreSQL 없음). Terraform은 코드만 작성했고 apply/validate 미실행 |
 | 2026-09-22 | 쿠폰 판별 파이프라인 구현 — 규칙 필터(도메인 우선 → 키워드), 범용 정규식 파서, 만료일 파서, 유효성 판정, 추출기 레지스트리. 단위 테스트 59건 통과. 구현 중 드러난 두 가지를 문서에 반영: `extract()`에 `receivedAt` 컨텍스트 추가(연말 연도 추론), 만료일 타당성 기준을 "오늘"에서 "수신일"로 정교화(만료 건이 `extraction_failed` 통계를 오염시키는 문제) |
 | 2026-09-22 | GmailProvider와 메일 수집 핸들러 구현 — OAuth/watch/history 조회/본문 파싱, envelope 암호화(KMS·로컬 키 제공자 분리), Pub/Sub push OIDC 검증 가드, webhook 수신기, 수집 서비스(커서 만료 시 24시간 재동기화, 유니크 제약 기반 중복 제거). 테스트 92건 통과. 수집 단계 규칙 필터는 메타데이터만 보도록 결정하고 `docs/01`에 대가를 기록 |
+| 2026-09-22 | `coupon-classify` 핸들러 구현 — 본문 조회 → 판별 → `coupons` 생성 → 푸시 발송/만료 리마인더 Cloud Tasks 적재. 규칙 필터를 다시 돌리지 않도록 `extractAndJudge()` 분리, 쿠폰 존재 여부로 멱등성 확보. Cloud Tasks 적재기 추가, Pub/Sub 가드·DTO를 `common/messaging`으로 이동. 리마인더를 쿠폰 생성 시점 예약으로 바꾼 내용을 `docs/02`에 반영. 테스트 105건 통과 |

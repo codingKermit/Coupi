@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../common/prisma/prisma.service';
 import { PubSubPublisher } from '../common/messaging/pubsub.publisher';
-import { PubSubPushGuard } from './pubsub-push.guard';
-import { PubSubPushDto, type GmailNotification } from './dto/pubsub-push.dto';
+import { PubSubPushGuard } from '../common/messaging/pubsub-push.guard';
+import { PubSubPushDto, type GmailNotification } from '../common/messaging/dto/pubsub-push.dto';
 import { decodePubSubData } from '../common/types/messages';
 import type { MailIngestMessage } from '../common/types/messages';
 
