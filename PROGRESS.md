@@ -1,6 +1,6 @@
 # 쿠피(Coupi) — 작업 진행 체크리스트
 
-마지막 업데이트: 2026-09-21 · 작업 재개 시 이 파일을 가장 먼저 확인할 것
+마지막 업데이트: 2026-09-22 · 작업 재개 시 이 파일을 가장 먼저 확인할 것
 
 > **범위 변경 (2026-09-21)**: 메일 제공자를 Gmail 단독으로 한정했다 (네이버 메일 미지원). 사유는 `docs/00-개요.md` 참고. 이에 따라 기존 "3단계 — 네이버 메일 연동 추가"를 삭제하고 이후 단계 번호를 재정렬했다.
 >
@@ -37,10 +37,14 @@
 ## 1단계 — MVP 백엔드 (`docs/01`, `02`, `03`, `05`)
 
 **인프라/기본 세팅**
-- [ ] dev/staging/production 환경 분리, GCP 프로젝트(환경별) 생성
-- [ ] PostgreSQL 인스턴스 및 `docs/03-API-DB-스펙.md`의 전체 스키마(DDL) 적용 — `coupons.used_at` 포함 (3단계용 선반영 컬럼, 마이그레이션 회피 목적)
-- [ ] Redis(BullMQ용) 세팅
-- [ ] Secrets Manager + KMS 키(마스터 키) 세팅
+- [ ] Terraform 프로젝트 구성 — 이후 모든 인프라는 IaC로 정의하고 콘솔 조작을 쓰지 않는다 (`docs/10-기술스택결정.md`)
+- [ ] dev / prod 2개 환경 분리, 환경별 GCP 프로젝트 생성 (staging은 3단계 진입 시 추가)
+- [ ] Cloud Run 서비스 2개(API, 워커) + Cloud Run Jobs(배치) 골격 배포
+- [ ] Cloud SQL(PostgreSQL) 인스턴스 생성 및 Prisma 마이그레이션으로 `docs/03-API-DB-스펙.md`의 전체 스키마 적용 — `coupons.used_at` 포함 (3단계용 선반영 컬럼, 마이그레이션 회피 목적)
+- [ ] Pub/Sub 토픽·구독 구성 (Gmail watch 알림 수신 겸 메일 수집 큐) + Cloud Tasks 큐 구성 (푸시 발송·만료 리마인더 예약)
+- [ ] Cloud Scheduler → Cloud Run Jobs 배치 트리거 구성
+- [ ] GCP Secret Manager + Cloud KMS 키(마스터 키) 세팅 — 실제 비밀값 입력은 사용자가 직접 수행 (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
+- [ ] NestJS + TypeScript 프로젝트 골격 생성 (모듈 구조는 `docs/05-백엔드아키텍처.md` 기준)
 
 **인증 (AuthService)**
 - [ ] Gmail OAuth 플로우 구현 (`GET /auth/gmail/url`, `POST /auth/gmail/callback`)
@@ -63,14 +67,16 @@
 - [ ] 초기 지원 발신자별 전용 파서 구현 (위 집계로 확정한 8곳 기준, `docs/02-쿠폰판별로직.md` "초기 지원 발신자 선정 절차")
 - [ ] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류)
 - [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업
-- [ ] 만료 임박 리마인더 배치(`coupon-expiry-reminder`) 구현
+- [ ] 만료 임박 리마인더 구현 — 쿠폰 생성 시점에 Cloud Tasks `schedule_time`으로 예약 (일일 전체 스캔 배치 불필요, `docs/05-백엔드아키텍처.md`)
 
 **End-to-end 확인 (1단계 완료 기준)**
 - [ ] 테스트 Gmail 계정으로 실제 프로모션 메일 수신 → `coupons` 레코드 생성까지 확인
 
 ## 2단계 — 모바일 앱 프로토타입 (`docs/04`, `06`)
 
-- [ ] React Native 프로젝트 초기 세팅 (React Query, React Navigation, Firebase Messaging)
+- [ ] React Native + Expo(development build) 프로젝트 초기 세팅 (React Query, React Navigation, Firebase Messaging) — macOS 미보유로 iOS 빌드는 EAS Build 사용 (`docs/10-기술스택결정.md`)
+- [ ] EAS Build 설정 및 iOS/Android 첫 빌드 통과 확인
+- [ ] (사용자 직접) Apple Developer Program 등록 — iOS 개발 빌드를 실기기에 설치하려면 필수 (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
 - [ ] 온보딩 화면: 인트로 → 권한 안내 → Gmail OAuth 웹뷰 (메일 서비스 선택 화면 없음, `docs/06-모바일앱구조.md`)
 - [ ] 쿠폰 목록 화면 (필터 탭, 카드 UI, pull-to-refresh)
 - [ ] 쿠폰 상세 화면 ("사용 완료로 표시"/"숨기기" 액션은 3단계로 미룸, `docs/06-모바일앱구조.md`)
@@ -121,6 +127,8 @@
 | --- | --- |
 | 2026-09-21 | 상세 설계 문서(`docs/00~09`) 작성 완료, 이 체크리스트 최초 생성 |
 | 2026-09-21 | 범위를 Gmail 단독으로 변경, 네이버 연동 단계 삭제 및 이후 단계 번호 재정렬 |
-| 2026-09-21 | 앱 이름을 "쿠피(Coupi)"로 확정, 작업 공간을 `E:\workspace\Coupi`로 이전하고 GitHub 관리 시작 |
+| 2026-09-21 | 앱 이름을 "쿠피(Coupi)"로 확정, 작업 공간을 `E:\workspace\Coupi`로 이전하고 GitHub 관리 시작 (현재 로컬 경로는 `C:\workspace\Coupi`) |
 | 2026-09-21 | MVP는 LLM 미사용으로 결정, 쿠폰 판별을 규칙/정규식 기반 구조로 재설계 (`docs/02-쿠폰판별로직.md` 전면 개정) |
 | 2026-09-21 | 착수 전 블로커/Open Question 전건 확정 — 다중 디바이스 전체 발송, 쿠폰 사용 추적 스키마만 선반영, 오탐지 신고 베타 필수, Gmail 전용 안내 문구, OAuth 심사 단계 분할 착수, 발신자 선정 절차 확정 (`docs/00`, `02`, `03`, `04`, `06`, `09` 반영) |
+| 2026-09-22 | 기술 스택 확정 (`docs/10-기술스택결정.md` 신규) — GCP 단독 / Cloud Run / Pub/Sub·Cloud Tasks(Redis·BullMQ 대체) / NestJS+TypeScript / Prisma / React Native+Expo / Terraform / dev+prod 2환경. 그간 "제안"이던 스택이 확정처럼 적혀 있던 1·2단계 항목을 실제 결정에 맞춰 교체 |
+| 2026-09-22 | 스택 확정에 맞춰 설계 문서 정리 — `05`(큐/인프라 전면 재작성), `08`(재시도·알림 기준), `03`(Prisma 마이그레이션 + 메시지 스펙), `01`·`04`·`07`(잔여 BullMQ/Datadog 참조 제거), 원본 설계문서에 superseded 안내 추가. 워커 Cloud Run은 Pub/Sub push 방식이라 `min-instances=0` 가능 — 고정비는 Cloud SQL 하나로 줄었다 |

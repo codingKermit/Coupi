@@ -1,6 +1,8 @@
 # 03. API / DB 스펙 상세 설계 ★ 심화
 
 > **범위 변경 (2026-09-21)**: Gmail 단독 지원으로 한정됨에 따라 네이버 관련 엔드포인트/스키마를 모두 제거했다 (`00-개요.md` 참고).
+>
+> **스택 확정 반영 (2026-09-22)**: 스키마 적용 수단을 Prisma 마이그레이션으로 확정하고, 내부 큐 메시지 스펙을 Pub/Sub + Cloud Tasks 기준으로 다시 작성했다 (`10-기술스택결정.md`, `05-백엔드아키텍처.md`).
 
 원본 설계의 "백엔드 기술 스택 및 인프라 구성"에서 언급만 되었던 데이터 모델과 API를 구체화한다.
 
@@ -75,6 +77,8 @@ erDiagram
 ```
 
 ## 테이블 스키마 (DDL)
+
+> 아래 DDL이 스키마의 기준 정의다. 실제 적용은 **Prisma 마이그레이션**으로 수행한다 — `schema.prisma`를 이 DDL과 일치하도록 작성한 뒤 `prisma migrate`로 생성된 SQL을 적용하고, 마이그레이션 파일을 저장소에 커밋해 dev/prod 간 스키마를 동일하게 유지한다 (`10-기술스택결정.md`).
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- gen_random_uuid() 사용
@@ -192,25 +196,40 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 - 에러 응답 포맷 통일: `{ error: { code: string, message: string } }` — 프런트에서 `code`로 분기 처리 (예: `GMAIL_TOKEN_REVOKED`, `GMAIL_AUTH_FAILED`)
 - Rate limit: 사용자당 분당 60 요청 (API Gateway 레벨)
 
-## 내부 큐 메시지 스펙
+## 내부 메시지 스펙
 
-BullMQ 잡 페이로드도 인터페이스로 고정해 워커 간 계약을 명확히 한다.
+큐가 Pub/Sub + Cloud Tasks로 바뀌었으므로(`05-백엔드아키텍처.md`), 페이로드는 **HTTP 요청 본문**으로 전달된다. 타입은 그대로 인터페이스로 고정해 서비스 간 계약을 명확히 한다.
 
 ```ts
-// mail-ingest 큐
-interface MailIngestJob {
+// Pub/Sub 토픽: mail-ingest
+// ordering key = mailAccountId (동일 계정 메시지의 순서 보장)
+interface MailIngestMessage {
   mailAccountId: string;
   triggeredBy: 'webhook' | 'polling';
+  historyId?: string;          // webhook 경유 시에만 존재
 }
 
-// coupon-classify 큐
-interface CouponClassifyJob {
+// Pub/Sub 토픽: coupon-classify
+interface CouponClassifyMessage {
   processedMailId: string;
 }
 
-// push-dispatch 큐
-interface PushDispatchJob {
+// Cloud Tasks 큐: push-dispatch
+interface PushDispatchTask {
   couponId: string;
   notificationType: 'new_coupon' | 'expiry_reminder';
 }
+
+// Cloud Tasks 큐: coupon-expiry-reminder
+// 쿠폰 생성 시점에 schedule_time을 만료 임박 시각으로 지정해 미리 예약한다
+interface ExpiryReminderTask {
+  couponId: string;
+}
 ```
+
+### 전달 규약
+
+- **Pub/Sub 메시지**는 base64로 인코딩되어 `message.data`에 담겨 push 구독으로 전달된다. 핸들러는 디코딩 후 위 인터페이스로 파싱한다.
+- **처리 성공은 2xx 응답으로 표현한다.** 4xx/5xx를 반환하면 재전달된다.
+- 두 서비스 모두 **at-least-once**이므로 모든 핸들러는 멱등해야 한다. 중복 방어 수단은 `processed_mails` 유니크 제약과 `notifications` 발송 이력이다 (`08-에러처리및엣지케이스.md`).
+- 재시도를 소진한 Pub/Sub 메시지는 dead letter topic으로 이동한다.
