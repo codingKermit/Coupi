@@ -1,0 +1,37 @@
+# 로컬 개발용 의존 서비스. 운영 인프라는 infra/terraform/ 참고.
+# 사용: docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: coupi-postgres
+    environment:
+      POSTGRES_USER: coupi
+      POSTGRES_PASSWORD: coupi
+      POSTGRES_DB: coupi
+    ports:
+      - "5432:5432"
+    volumes:
+      - coupi-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coupi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Pub/Sub 에뮬레이터 — 로컬에서 실제 GCP에 붙지 않고 메시지 흐름을 테스트한다.
+  # 백엔드 .env에 PUBSUB_EMULATOR_HOST=localhost:8085 를 설정해야 사용된다.
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: coupi-pubsub
+    command: >
+      gcloud beta emulators pubsub start
+      --project=coupi-local
+      --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+
+# Cloud Tasks는 공식 에뮬레이터가 없다. 로컬에서는 큐에 넣는 대신
+# 타깃 엔드포인트를 직접 호출하는 어댑터를 사용한다 (docs/05-백엔드아키텍처.md).
+
+volumes:
+  coupi-pgdata:

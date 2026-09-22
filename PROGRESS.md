@@ -36,19 +36,30 @@
 
 ## 1단계 — MVP 백엔드 (`docs/01`, `02`, `03`, `05`)
 
+**사용자가 직접 해야 하는 선행 작업** (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
+- [ ] (블로킹) GCP 계정 생성 및 결제 수단 등록 — 이게 없으면 아래 인프라 항목을 하나도 적용할 수 없다
+- [ ] (블로킹) dev/prod GCP 프로젝트 생성
+- [ ] Terraform 상태 저장용 GCS 버킷 생성 (`infra/terraform/README.md` "사전 준비")
+- [ ] 로컬에 gcloud CLI, Terraform 설치 (현재 미설치) + `gcloud auth application-default login`
+- [ ] 로컬에 Docker Desktop 설치 (현재 미설치 — 로컬 PostgreSQL/Pub-Sub 에뮬레이터 구동용)
+- [ ] Secret Manager에 실제 비밀값 4건 입력 (db-password, gmail-oauth-client-secret, encryption-master-key, session-jwt-secret)
+
 **인프라/기본 세팅**
-- [ ] Terraform 프로젝트 구성 — 이후 모든 인프라는 IaC로 정의하고 콘솔 조작을 쓰지 않는다 (`docs/10-기술스택결정.md`)
+- [x] NestJS + TypeScript 프로젝트 골격 생성 (`backend/`, 모듈 구조는 `docs/05-백엔드아키텍처.md` 기준) — 빌드/부팅 확인 완료
+- [x] Prisma 스키마 작성 (`backend/prisma/schema.prisma`, `docs/03`의 DDL과 1:1) + CHECK 제약/부분 인덱스 SQL 분리 (`backend/prisma/sql/constraints.sql`)
+- [x] 로컬 개발 환경 정의 (`docker-compose.yml` — PostgreSQL + Pub/Sub 에뮬레이터)
+- [x] Terraform 프로젝트 구성 — 콘솔 조작 없이 IaC로만 관리 (`infra/terraform/`) ← **코드 작성 완료, 아직 apply 안 됨. terraform 미설치로 `validate`도 미실행**
 - [ ] dev / prod 2개 환경 분리, 환경별 GCP 프로젝트 생성 (staging은 3단계 진입 시 추가)
-- [ ] Cloud Run 서비스 2개(API, 워커) + Cloud Run Jobs(배치) 골격 배포
+- [ ] Cloud Run 서비스 2개(API, 워커) + Cloud Run Jobs(배치) 실제 배포
 - [ ] Cloud SQL(PostgreSQL) 인스턴스 생성 및 Prisma 마이그레이션으로 `docs/03-API-DB-스펙.md`의 전체 스키마 적용 — `coupons.used_at` 포함 (3단계용 선반영 컬럼, 마이그레이션 회피 목적)
 - [ ] Pub/Sub 토픽·구독 구성 (Gmail watch 알림 수신 겸 메일 수집 큐) + Cloud Tasks 큐 구성 (푸시 발송·만료 리마인더 예약)
 - [ ] Cloud Scheduler → Cloud Run Jobs 배치 트리거 구성
 - [ ] GCP Secret Manager + Cloud KMS 키(마스터 키) 세팅 — 실제 비밀값 입력은 사용자가 직접 수행 (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
-- [ ] NestJS + TypeScript 프로젝트 골격 생성 (모듈 구조는 `docs/05-백엔드아키텍처.md` 기준)
+- [ ] 컨테이너 이미지 빌드/배포 파이프라인 (Artifact Registry + Cloud Build 또는 GitHub Actions)
 
 **인증 (AuthService)**
 - [ ] Gmail OAuth 플로우 구현 (`GET /auth/gmail/url`, `POST /auth/gmail/callback`)
-- [ ] `MailProvider` 인터페이스 및 `GmailProvider` 구현 (`docs/01-메일연동.md`)
+- [ ] `MailProvider` 인터페이스 및 `GmailProvider` 구현 (`docs/01-메일연동.md`) — 인터페이스는 정의 완료(`backend/src/auth/mail-provider.interface.ts`), 구현체는 미작성
 - [ ] Refresh token AES-256-GCM 암호화 저장 (`docs/07-보안개인정보.md`)
 - [ ] 계정 연결 해제 흐름 구현 (`DELETE /mail-accounts/:id`, revoke 포함)
 
@@ -62,7 +73,7 @@
 **쿠폰 판별 (CouponClassifierService, MVP: LLM 미사용)**
 - [ ] `filter_domains`/`filter_keywords` 테이블 및 초기 시드 데이터 적재 (`docs/02-쿠폰판별로직.md`)
 - [ ] 규칙 필터 로직 구현 (도메인 우선 → 키워드 매칭)
-- [ ] `CouponExtractor` 인터페이스 정의 (`docs/02-쿠폰판별로직.md`)
+- [x] `CouponExtractor` 인터페이스 정의 (`backend/src/coupon-classifier/extractors/coupon-extractor.interface.ts`, `docs/02-쿠폰판별로직.md`)
 - [ ] 범용 정규식 파서(`GenericRegexExtractor`) 구현 (할인율/만료일/조건/스팸 키워드 패턴)
 - [ ] 초기 지원 발신자별 전용 파서 구현 (위 집계로 확정한 8곳 기준, `docs/02-쿠폰판별로직.md` "초기 지원 발신자 선정 절차")
 - [ ] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류)
@@ -132,3 +143,4 @@
 | 2026-09-21 | 착수 전 블로커/Open Question 전건 확정 — 다중 디바이스 전체 발송, 쿠폰 사용 추적 스키마만 선반영, 오탐지 신고 베타 필수, Gmail 전용 안내 문구, OAuth 심사 단계 분할 착수, 발신자 선정 절차 확정 (`docs/00`, `02`, `03`, `04`, `06`, `09` 반영) |
 | 2026-09-22 | 기술 스택 확정 (`docs/10-기술스택결정.md` 신규) — GCP 단독 / Cloud Run / Pub/Sub·Cloud Tasks(Redis·BullMQ 대체) / NestJS+TypeScript / Prisma / React Native+Expo / Terraform / dev+prod 2환경. 그간 "제안"이던 스택이 확정처럼 적혀 있던 1·2단계 항목을 실제 결정에 맞춰 교체 |
 | 2026-09-22 | 스택 확정에 맞춰 설계 문서 정리 — `05`(큐/인프라 전면 재작성), `08`(재시도·알림 기준), `03`(Prisma 마이그레이션 + 메시지 스펙), `01`·`04`·`07`(잔여 BullMQ/Datadog 참조 제거), 원본 설계문서에 superseded 안내 추가. 워커 Cloud Run은 Pub/Sub push 방식이라 `min-instances=0` 가능 — 고정비는 Cloud SQL 하나로 줄었다 |
+| 2026-09-22 | 1단계 착수 — `backend/` NestJS+TypeScript 골격(모듈 9개, 환경변수 zod 검증, health 엔드포인트, Prisma 스키마), `infra/terraform/` GCP 인프라 코드, `docker-compose.yml` 로컬 환경, README 3종 작성. 빌드와 부팅 확인 완료(DB 연결에서만 실패 — 로컬 PostgreSQL 없음). Terraform은 코드만 작성했고 apply/validate 미실행 |

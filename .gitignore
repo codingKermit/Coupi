@@ -27,3 +27,17 @@ android/.gradle/
 # OS
 .DS_Store
 Thumbs.db
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.backend.hcl
+!*.backend.hcl.example
+crash.log
+
+# Prisma
+backend/prisma/migrations/dev.db*

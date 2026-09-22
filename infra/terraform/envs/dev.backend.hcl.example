@@ -1,0 +1,3 @@
+# terraform init -backend-config=envs/dev.backend.hcl
+bucket = "coupi-tfstate-dev"
+prefix = "terraform/state"
