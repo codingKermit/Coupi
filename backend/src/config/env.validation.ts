@@ -23,8 +23,20 @@ export const envSchema = z.object({
   // Pub/Sub 토픽 (docs/05-백엔드아키텍처.md)
   PUBSUB_TOPIC_MAIL_INGEST: z.string().min(1).default('mail-ingest'),
   PUBSUB_TOPIC_COUPON_CLASSIFY: z.string().min(1).default('coupon-classify'),
+  /** Gmail watch 알림이 발행되는 토픽 (users.watch에 지정) */
+  PUBSUB_TOPIC_GMAIL_NOTIFICATIONS: z
+    .string()
+    .min(1)
+    .default('gmail-notifications'),
   /** 로컬 개발 시 Pub/Sub 에뮬레이터 주소. 설정되면 실제 GCP 대신 에뮬레이터를 쓴다. */
   PUBSUB_EMULATOR_HOST: z.string().optional(),
+  /**
+   * Pub/Sub push 요청의 OIDC 토큰을 검증할 때 기대하는 서비스 계정 이메일.
+   * 운영에서는 필수다 (`docs/05` "내부 엔드포인트 보호").
+   */
+  PUBSUB_PUSH_SA_EMAIL: z.string().optional(),
+  /** OIDC 토큰의 audience. 보통 push 엔드포인트 URL이다. */
+  PUBSUB_PUSH_AUDIENCE: z.string().optional(),
 
   // Cloud Tasks 큐 (docs/05-백엔드아키텍처.md)
   CLOUD_TASKS_QUEUE_PUSH_DISPATCH: z.string().min(1).default('push-dispatch'),
@@ -43,6 +55,8 @@ export const envSchema = z.object({
   // 암호화 / 세션
   /** AES-256-GCM 마스터 키 (base64). KMS envelope encryption의 DEK를 감싸는 키. */
   ENCRYPTION_MASTER_KEY: z.string().min(1),
+  /** Cloud KMS 키 리소스 이름. 설정되면 마스터 키 대신 KMS로 DEK를 감싼다 (운영 경로). */
+  KMS_KEY_NAME: z.string().optional(),
   SESSION_JWT_SECRET: z.string().min(1),
 
   // 관측

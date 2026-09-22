@@ -34,11 +34,11 @@ export interface PubSubPushBody {
   message: {
     data: string;
     messageId: string;
-    publishTime: string;
+    publishTime?: string;
     attributes?: Record<string, string>;
     orderingKey?: string;
   };
-  subscription: string;
+  subscription?: string;
 }
 
 /** Pub/Sub push 본문의 base64 data를 디코딩해 파싱한다. */

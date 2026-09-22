@@ -20,6 +20,9 @@
     "prisma:seed": "prisma db seed"
   },
   "dependencies": {
+    "@google-cloud/kms": "^6.2.0",
+    "@google-cloud/pubsub": "^6.1.0",
+    "@google-cloud/tasks": "^7.1.1",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -27,6 +30,8 @@
     "@prisma/client": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "google-auth-library": "^11.1.0",
+    "googleapis": "^181.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^3.24.1"

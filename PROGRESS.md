@@ -59,16 +59,16 @@
 
 **인증 (AuthService)**
 - [ ] Gmail OAuth 플로우 구현 (`GET /auth/gmail/url`, `POST /auth/gmail/callback`)
-- [ ] `MailProvider` 인터페이스 및 `GmailProvider` 구현 (`docs/01-메일연동.md`) — 인터페이스는 정의 완료(`backend/src/auth/mail-provider.interface.ts`), 구현체는 미작성
-- [ ] Refresh token AES-256-GCM 암호화 저장 (`docs/07-보안개인정보.md`)
+- [x] `MailProvider` 인터페이스 및 `GmailProvider` 구현 (`docs/01-메일연동.md`) — OAuth/watch/history/본문 조회 전부 구현, 스코프는 `gmail.readonly` 하나로 고정
+- [x] Refresh token AES-256-GCM 암호화 저장 (`docs/07-보안개인정보.md`) — envelope 방식, KMS/로컬 키 제공자 분리, 갱신 시 지연 재암호화
 - [ ] 계정 연결 해제 흐름 구현 (`DELETE /mail-accounts/:id`, revoke 포함)
 
 **메일 수집 (MailIngestService)**
-- [ ] Gmail webhook 수신기 구현 + Pub/Sub JWT 검증
+- [x] Gmail webhook 수신기 구현 + Pub/Sub JWT 검증 — `POST /internal/gmail/webhook`, `PubSubPushGuard`(OIDC 검증, 운영에서 SA 이메일 필수)
 - [ ] `users.watch()` 등록 및 갱신 배치(`gmail-watch-renewal`) 구현
-- [ ] `history.list` 기반 신규 메일 조회, 404(historyId 만료) 시 재동기화 로직
+- [x] `history.list` 기반 신규 메일 조회, 404(historyId 만료) 시 재동기화 로직 — `MailIngestService`, 최근 24시간 `messages.list` 재동기화
 - [ ] 보정 폴링 배치(`gmail-safety-poll`, 6시간 주기) 구현 (`docs/01-메일연동.md`)
-- [ ] `processed_mails` 유니크 제약 기반 중복 제거 확인
+- [x] `processed_mails` 유니크 제약 기반 중복 제거 확인 — 사전 조회 + P2002 처리로 at-least-once 대응
 
 **쿠폰 판별 (CouponClassifierService, MVP: LLM 미사용)**
 - [ ] `filter_domains`/`filter_keywords` 초기 시드 데이터 적재 — 시드 스크립트 작성 완료(`backend/prisma/seed.ts`, 키워드 13종), 실제 적재는 DB 필요. `filter_domains`는 발신자 집계 후 채운다
@@ -145,3 +145,4 @@
 | 2026-09-22 | 스택 확정에 맞춰 설계 문서 정리 — `05`(큐/인프라 전면 재작성), `08`(재시도·알림 기준), `03`(Prisma 마이그레이션 + 메시지 스펙), `01`·`04`·`07`(잔여 BullMQ/Datadog 참조 제거), 원본 설계문서에 superseded 안내 추가. 워커 Cloud Run은 Pub/Sub push 방식이라 `min-instances=0` 가능 — 고정비는 Cloud SQL 하나로 줄었다 |
 | 2026-09-22 | 1단계 착수 — `backend/` NestJS+TypeScript 골격(모듈 9개, 환경변수 zod 검증, health 엔드포인트, Prisma 스키마), `infra/terraform/` GCP 인프라 코드, `docker-compose.yml` 로컬 환경, README 3종 작성. 빌드와 부팅 확인 완료(DB 연결에서만 실패 — 로컬 PostgreSQL 없음). Terraform은 코드만 작성했고 apply/validate 미실행 |
 | 2026-09-22 | 쿠폰 판별 파이프라인 구현 — 규칙 필터(도메인 우선 → 키워드), 범용 정규식 파서, 만료일 파서, 유효성 판정, 추출기 레지스트리. 단위 테스트 59건 통과. 구현 중 드러난 두 가지를 문서에 반영: `extract()`에 `receivedAt` 컨텍스트 추가(연말 연도 추론), 만료일 타당성 기준을 "오늘"에서 "수신일"로 정교화(만료 건이 `extraction_failed` 통계를 오염시키는 문제) |
+| 2026-09-22 | GmailProvider와 메일 수집 핸들러 구현 — OAuth/watch/history 조회/본문 파싱, envelope 암호화(KMS·로컬 키 제공자 분리), Pub/Sub push OIDC 검증 가드, webhook 수신기, 수집 서비스(커서 만료 시 24시간 재동기화, 유니크 제약 기반 중복 제거). 테스트 92건 통과. 수집 단계 규칙 필터는 메타데이터만 보도록 결정하고 `docs/01`에 대가를 기록 |
