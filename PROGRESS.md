@@ -71,13 +71,13 @@
 - [ ] `processed_mails` 유니크 제약 기반 중복 제거 확인
 
 **쿠폰 판별 (CouponClassifierService, MVP: LLM 미사용)**
-- [ ] `filter_domains`/`filter_keywords` 테이블 및 초기 시드 데이터 적재 (`docs/02-쿠폰판별로직.md`)
-- [ ] 규칙 필터 로직 구현 (도메인 우선 → 키워드 매칭)
+- [ ] `filter_domains`/`filter_keywords` 초기 시드 데이터 적재 — 시드 스크립트 작성 완료(`backend/prisma/seed.ts`, 키워드 13종), 실제 적재는 DB 필요. `filter_domains`는 발신자 집계 후 채운다
+- [x] 규칙 필터 로직 구현 (도메인 우선 → 키워드 매칭) — `backend/src/coupon-classifier/rule-filter.service.ts`, 5분 캐시 + 서브도메인/공백표기 대응
 - [x] `CouponExtractor` 인터페이스 정의 (`backend/src/coupon-classifier/extractors/coupon-extractor.interface.ts`, `docs/02-쿠폰판별로직.md`)
-- [ ] 범용 정규식 파서(`GenericRegexExtractor`) 구현 (할인율/만료일/조건/스팸 키워드 패턴)
+- [x] 범용 정규식 파서(`GenericRegexExtractor`) 구현 (할인율/만료일/조건/스팸 키워드 패턴) — 만료일 연도 추론과 오파싱 방어 포함
 - [ ] 초기 지원 발신자별 전용 파서 구현 (위 집계로 확정한 8곳 기준, `docs/02-쿠폰판별로직.md` "초기 지원 발신자 선정 절차")
-- [ ] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류)
-- [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업
+- [x] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류) — `ValidityCheckerService`, KST 기준
+- [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업 — 판별 결과 반환까지 구현, DB 기록은 메일 수집 핸들러 연결 시
 - [ ] 만료 임박 리마인더 구현 — 쿠폰 생성 시점에 Cloud Tasks `schedule_time`으로 예약 (일일 전체 스캔 배치 불필요, `docs/05-백엔드아키텍처.md`)
 
 **End-to-end 확인 (1단계 완료 기준)**
@@ -144,3 +144,4 @@
 | 2026-09-22 | 기술 스택 확정 (`docs/10-기술스택결정.md` 신규) — GCP 단독 / Cloud Run / Pub/Sub·Cloud Tasks(Redis·BullMQ 대체) / NestJS+TypeScript / Prisma / React Native+Expo / Terraform / dev+prod 2환경. 그간 "제안"이던 스택이 확정처럼 적혀 있던 1·2단계 항목을 실제 결정에 맞춰 교체 |
 | 2026-09-22 | 스택 확정에 맞춰 설계 문서 정리 — `05`(큐/인프라 전면 재작성), `08`(재시도·알림 기준), `03`(Prisma 마이그레이션 + 메시지 스펙), `01`·`04`·`07`(잔여 BullMQ/Datadog 참조 제거), 원본 설계문서에 superseded 안내 추가. 워커 Cloud Run은 Pub/Sub push 방식이라 `min-instances=0` 가능 — 고정비는 Cloud SQL 하나로 줄었다 |
 | 2026-09-22 | 1단계 착수 — `backend/` NestJS+TypeScript 골격(모듈 9개, 환경변수 zod 검증, health 엔드포인트, Prisma 스키마), `infra/terraform/` GCP 인프라 코드, `docker-compose.yml` 로컬 환경, README 3종 작성. 빌드와 부팅 확인 완료(DB 연결에서만 실패 — 로컬 PostgreSQL 없음). Terraform은 코드만 작성했고 apply/validate 미실행 |
+| 2026-09-22 | 쿠폰 판별 파이프라인 구현 — 규칙 필터(도메인 우선 → 키워드), 범용 정규식 파서, 만료일 파서, 유효성 판정, 추출기 레지스트리. 단위 테스트 59건 통과. 구현 중 드러난 두 가지를 문서에 반영: `extract()`에 `receivedAt` 컨텍스트 추가(연말 연도 추론), 만료일 타당성 기준을 "오늘"에서 "수신일"로 정교화(만료 건이 `extraction_failed` 통계를 오염시키는 문제) |

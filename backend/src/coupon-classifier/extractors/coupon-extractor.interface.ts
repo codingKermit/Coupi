@@ -17,11 +17,26 @@ export interface ExtractedCoupon {
   extractorId: string;
 }
 
+/**
+ * 추출에 필요한 메일 메타데이터.
+ *
+ * `receivedAt`이 필요한 이유: "12/25까지"처럼 연도가 없는 만료일의 연도를 추론하려면
+ * 기준 시각이 있어야 한다. 처리 시각(now)을 쓰면 보정 폴링이나 historyId 재동기화로
+ * 늦게 처리된 메일에서 연말 경계에 연도가 어긋난다.
+ */
+export interface ExtractionContext {
+  receivedAt: Date;
+}
+
 export interface CouponExtractor {
   readonly extractorType: ExtractorType;
   canHandle(senderDomain: string): boolean;
-  extract(subject: string, bodyText: string): ExtractedCoupon | null;
+  extract(
+    subject: string,
+    bodyText: string,
+    context?: ExtractionContext,
+  ): ExtractedCoupon | null;
 }
 
-/** DI 토큰 — 등록된 추출기 목록을 주입받는다 */
-export const COUPON_EXTRACTORS = Symbol('COUPON_EXTRACTORS');
+/** DI 토큰 — 등록된 발신자 전용 추출기 목록을 주입받는다 */
+export const SENDER_EXTRACTORS = Symbol('SENDER_EXTRACTORS');
