@@ -9,11 +9,13 @@ resource "google_cloud_tasks_queue" "push_dispatch" {
     max_concurrent_dispatches = 50
   }
 
+  # docs/04-푸시알림.md: 최대 3회 재시도, 1분 → 5분 → 15분.
+  # Cloud Tasks는 지수 백오프만 지원하므로 60s → 120s → 240s로 근사한다.
   retry_config {
-    max_attempts       = 5
-    min_backoff        = "10s"
-    max_backoff        = "600s"
-    max_doublings      = 4
+    max_attempts  = 4 # 최초 1회 + 재시도 3회
+    min_backoff   = "60s"
+    max_backoff   = "900s"
+    max_doublings = 2
   }
 
   depends_on = [google_project_service.enabled]

@@ -63,6 +63,10 @@ export const envSchema = z.object({
 
   // 관측
   SENTRY_DSN: z.string().optional(),
+
+  // 모바일 앱
+  /** 푸시 딥링크 스킴 (docs/04-푸시알림.md) */
+  APP_DEEPLINK_SCHEME: z.string().min(1).default('coupi'),
 });
 
 export type Env = z.infer<typeof envSchema>;

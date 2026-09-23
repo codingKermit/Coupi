@@ -78,7 +78,7 @@
 - [ ] 초기 지원 발신자별 전용 파서 구현 (위 집계로 확정한 8곳 기준, `docs/02-쿠폰판별로직.md` "초기 지원 발신자 선정 절차")
 - [x] 유효성 판정 로직 구현 (`usable_now`: 만료일 파싱 성공 + 만료 전만 발송, 실패 시 보류) — `ValidityCheckerService`, KST 기준
 - [ ] `extraction_failed` 보류 건 로깅 및 주간 리뷰 프로세스 셋업 — DB 기록은 구현 완료(`CouponClassifyService`가 `processed_mails.filter_result` 갱신), 주간 리뷰 절차·리포트는 미구현
-- [ ] 만료 임박 리마인더 구현 — 쿠폰 생성 시점 예약까지 완료(`expiryReminderTime`, Cloud Tasks `schedule_time`). 실제 발송은 `/internal/expiry-reminder` 핸들러(NotificationService)에서 처리 예정
+- [x] 만료 임박 리마인더 구현 — 쿠폰 생성 시점 예약(`expiryReminderTime`) + `/internal/expiry-reminder` 발송 핸들러 완료
 
 **End-to-end 확인 (1단계 완료 기준)**
 - [ ] 테스트 Gmail 계정으로 실제 프로모션 메일 수신 → `coupons` 레코드 생성까지 확인
@@ -93,9 +93,9 @@
 - [ ] 쿠폰 상세 화면 ("사용 완료로 표시"/"숨기기" 액션은 3단계로 미룸, `docs/06-모바일앱구조.md`)
 - [ ] 설정 화면 (연결 계정 관리, 알림 on/off)
 - [ ] `POST /devices` 디바이스 토큰 등록 연동
-- [ ] NotificationService: FCM 발송 구현, 페이로드 규격 적용 (`docs/04-푸시알림.md`)
+- [x] NotificationService: FCM 발송 구현, 페이로드 규격 적용 (`docs/04-푸시알림.md`) — HTTP v1 직접 호출, 다중 디바이스 전체 발송, 부분 실패 시 성공분 건너뛰고 재시도
 - [ ] 포그라운드/백그라운드 푸시 수신 및 딥링크 처리
-- [ ] 디바이스 토큰 무효화(`UNREGISTERED`) 처리 구현
+- [x] 디바이스 토큰 무효화(`UNREGISTERED`) 처리 구현 — 영구 실패로 분류해 재시도하지 않고 `devices` 레코드 즉시 삭제
 
 **End-to-end 확인 (2단계 완료 기준)**
 - [ ] 테스트 기기에서 실제 푸시 알림 수신 → 탭 시 상세 화면 진입 확인
@@ -147,3 +147,4 @@
 | 2026-09-22 | 쿠폰 판별 파이프라인 구현 — 규칙 필터(도메인 우선 → 키워드), 범용 정규식 파서, 만료일 파서, 유효성 판정, 추출기 레지스트리. 단위 테스트 59건 통과. 구현 중 드러난 두 가지를 문서에 반영: `extract()`에 `receivedAt` 컨텍스트 추가(연말 연도 추론), 만료일 타당성 기준을 "오늘"에서 "수신일"로 정교화(만료 건이 `extraction_failed` 통계를 오염시키는 문제) |
 | 2026-09-22 | GmailProvider와 메일 수집 핸들러 구현 — OAuth/watch/history 조회/본문 파싱, envelope 암호화(KMS·로컬 키 제공자 분리), Pub/Sub push OIDC 검증 가드, webhook 수신기, 수집 서비스(커서 만료 시 24시간 재동기화, 유니크 제약 기반 중복 제거). 테스트 92건 통과. 수집 단계 규칙 필터는 메타데이터만 보도록 결정하고 `docs/01`에 대가를 기록 |
 | 2026-09-22 | `coupon-classify` 핸들러 구현 — 본문 조회 → 판별 → `coupons` 생성 → 푸시 발송/만료 리마인더 Cloud Tasks 적재. 규칙 필터를 다시 돌리지 않도록 `extractAndJudge()` 분리, 쿠폰 존재 여부로 멱등성 확보. Cloud Tasks 적재기 추가, Pub/Sub 가드·DTO를 `common/messaging`으로 이동. 리마인더를 쿠폰 생성 시점 예약으로 바꾼 내용을 `docs/02`에 반영. 테스트 105건 통과 |
+| 2026-09-23 | NotificationService 구현 — FCM HTTP v1 발송(`fcm.client.ts`, firebase-admin 없이 ADC+fetch), 푸시 문구 생성, 다중 디바이스 전체 발송, 무효 토큰 즉시 삭제, 부분 실패 시 성공분 제외 재시도. `/internal/push-dispatch`와 `/internal/expiry-reminder` 핸들러 추가. Pub/Sub 전용이던 가드를 `InternalCallerGuard`로 일반화(Cloud Tasks도 OIDC로 호출). Cloud Tasks 재시도 정책을 `docs/04` 기준에 맞춰 조정하고 근사임을 문서화. 테스트 124건 통과 |

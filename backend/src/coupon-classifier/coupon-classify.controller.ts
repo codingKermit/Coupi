@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Logger, Post, UseGuards } from '@nestjs/common';
 
 import { CouponClassifyService } from './coupon-classify.service';
-import { PubSubPushGuard } from '../common/messaging/pubsub-push.guard';
+import { InternalCallerGuard } from '../common/messaging/internal-caller.guard';
 import { PubSubPushDto } from '../common/messaging/dto/pubsub-push.dto';
 import { decodePubSubData } from '../common/types/messages';
 import type { CouponClassifyMessage } from '../common/types/messages';
@@ -13,7 +13,7 @@ import type { CouponClassifyMessage } from '../common/types/messages';
  * dead letter topic으로 넘어간다 (`infra/terraform/pubsub.tf`).
  */
 @Controller('internal')
-@UseGuards(PubSubPushGuard)
+@UseGuards(InternalCallerGuard)
 export class CouponClassifyController {
   private readonly logger = new Logger(CouponClassifyController.name);
 

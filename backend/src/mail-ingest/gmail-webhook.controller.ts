@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../common/prisma/prisma.service';
 import { PubSubPublisher } from '../common/messaging/pubsub.publisher';
-import { PubSubPushGuard } from '../common/messaging/pubsub-push.guard';
+import { InternalCallerGuard } from '../common/messaging/internal-caller.guard';
 import { PubSubPushDto, type GmailNotification } from '../common/messaging/dto/pubsub-push.dto';
 import { decodePubSubData } from '../common/types/messages';
 import type { MailIngestMessage } from '../common/types/messages';
@@ -15,7 +15,7 @@ import type { MailIngestMessage } from '../common/types/messages';
  * 실제 처리는 워커 쪽 핸들러로 분리한다.
  */
 @Controller('internal/gmail')
-@UseGuards(PubSubPushGuard)
+@UseGuards(InternalCallerGuard)
 export class GmailWebhookController {
   private readonly logger = new Logger(GmailWebhookController.name);
   private readonly ingestTopic: string;
