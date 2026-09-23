@@ -58,14 +58,14 @@
 - [ ] 컨테이너 이미지 빌드/배포 파이프라인 (Artifact Registry + Cloud Build 또는 GitHub Actions)
 
 **인증 (AuthService)**
-- [ ] Gmail OAuth 플로우 구현 (`GET /auth/gmail/url`, `POST /auth/gmail/callback`)
+- [x] Gmail OAuth 플로우 구현 (`GET /auth/gmail/url`, `POST /auth/gmail/callback`) — 콜백이 회원가입 겸 로그인, 세션 JWT 발급, state 기반 CSRF 방지, 연결 직후 watch 등록
 - [x] `MailProvider` 인터페이스 및 `GmailProvider` 구현 (`docs/01-메일연동.md`) — OAuth/watch/history/본문 조회 전부 구현, 스코프는 `gmail.readonly` 하나로 고정
 - [x] Refresh token AES-256-GCM 암호화 저장 (`docs/07-보안개인정보.md`) — envelope 방식, KMS/로컬 키 제공자 분리, 갱신 시 지연 재암호화
-- [ ] 계정 연결 해제 흐름 구현 (`DELETE /mail-accounts/:id`, revoke 포함)
+- [x] 계정 연결 해제 흐름 구현 (`DELETE /mail-accounts/:id`, revoke 포함) — `docs/07` 순서대로 status 변경 → revoke → 토큰 컬럼 NULL
 
 **메일 수집 (MailIngestService)**
 - [x] Gmail webhook 수신기 구현 + Pub/Sub JWT 검증 — `POST /internal/gmail/webhook`, `PubSubPushGuard`(OIDC 검증, 운영에서 SA 이메일 필수)
-- [ ] `users.watch()` 등록 및 갱신 배치(`gmail-watch-renewal`) 구현
+- [ ] `users.watch()` 등록 및 갱신 배치(`gmail-watch-renewal`) 구현 — 최초 등록은 OAuth 콜백에서 완료, 갱신 배치는 미구현
 - [x] `history.list` 기반 신규 메일 조회, 404(historyId 만료) 시 재동기화 로직 — `MailIngestService`, 최근 24시간 `messages.list` 재동기화
 - [ ] 보정 폴링 배치(`gmail-safety-poll`, 6시간 주기) 구현 (`docs/01-메일연동.md`)
 - [x] `processed_mails` 유니크 제약 기반 중복 제거 확인 — 사전 조회 + P2002 처리로 at-least-once 대응
@@ -148,3 +148,4 @@
 | 2026-09-22 | GmailProvider와 메일 수집 핸들러 구현 — OAuth/watch/history 조회/본문 파싱, envelope 암호화(KMS·로컬 키 제공자 분리), Pub/Sub push OIDC 검증 가드, webhook 수신기, 수집 서비스(커서 만료 시 24시간 재동기화, 유니크 제약 기반 중복 제거). 테스트 92건 통과. 수집 단계 규칙 필터는 메타데이터만 보도록 결정하고 `docs/01`에 대가를 기록 |
 | 2026-09-22 | `coupon-classify` 핸들러 구현 — 본문 조회 → 판별 → `coupons` 생성 → 푸시 발송/만료 리마인더 Cloud Tasks 적재. 규칙 필터를 다시 돌리지 않도록 `extractAndJudge()` 분리, 쿠폰 존재 여부로 멱등성 확보. Cloud Tasks 적재기 추가, Pub/Sub 가드·DTO를 `common/messaging`으로 이동. 리마인더를 쿠폰 생성 시점 예약으로 바꾼 내용을 `docs/02`에 반영. 테스트 105건 통과 |
 | 2026-09-23 | NotificationService 구현 — FCM HTTP v1 발송(`fcm.client.ts`, firebase-admin 없이 ADC+fetch), 푸시 문구 생성, 다중 디바이스 전체 발송, 무효 토큰 즉시 삭제, 부분 실패 시 성공분 제외 재시도. `/internal/push-dispatch`와 `/internal/expiry-reminder` 핸들러 추가. Pub/Sub 전용이던 가드를 `InternalCallerGuard`로 일반화(Cloud Tasks도 OIDC로 호출). Cloud Tasks 재시도 정책을 `docs/04` 기준에 맞춰 조정하고 근사임을 문서화. 테스트 124건 통과 |
+| 2026-09-23 | OAuth 엔드포인트와 계정 연결 해제 구현 — 세션 JWT(`SessionService`, state 기반 CSRF 방지), `SessionGuard`, `GET /auth/gmail/url`, `POST /auth/gmail/callback`(회원가입 겸 로그인 + watch 등록), `DELETE /mail-accounts/:id`. 설계 공백 두 건을 바로잡았다: `docs/03`에 로그인 엔드포인트가 없어 세션 JWT 출처가 비어 있던 문제(콜백이 발급하도록 보완), `encrypted_refresh_token`이 NOT NULL이라 `docs/07`의 "NULL로 덮어쓰기" 절차와 충돌하던 문제(nullable로 변경). `@nestjs/jwt` v11이 ESM 전용이라 `jsonwebtoken` 직접 사용으로 교체. 테스트 132건 통과 |

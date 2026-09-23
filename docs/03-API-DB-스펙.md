@@ -96,7 +96,7 @@ CREATE TABLE mail_accounts (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   provider VARCHAR(20) NOT NULL DEFAULT 'gmail' CHECK (provider IN ('gmail')), -- 현재는 gmail 단일 값. 향후 제공자 추가 시 CHECK만 확장
   provider_account_email VARCHAR(255) NOT NULL,
-  encrypted_refresh_token TEXT NOT NULL,   -- AES-256-GCM, KMS 관리 키로 암호화
+  encrypted_refresh_token TEXT,            -- AES-256-GCM, KMS 관리 키로 암호화. 연결 해제 시 NULL로 덮어써 실제 제거 (07번 문서 "토큰 폐기 흐름")
   encrypted_access_token TEXT,
   access_token_expires_at TIMESTAMPTZ,
   cursor JSONB DEFAULT '{}',               -- { historyId }
@@ -173,7 +173,7 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 | 메서드 | 경로 | 설명 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
 | GET | `/auth/gmail/url` | Gmail OAuth 인증 URL 발급 | - | `{ url: string, state: string }` |
-| POST | `/auth/gmail/callback` | Gmail 인증 코드 교환 | `{ code, state }` | `{ mailAccountId, email }` |
+| POST | `/auth/gmail/callback` | Gmail 인증 코드 교환 겸 **로그인** | `{ code, state }` | `{ mailAccountId, email, accessToken }` |
 | DELETE | `/mail-accounts/:id` | 계정 연결 해제 (토큰 폐기 + revoke) | - | `204` |
 
 ### 사용자/디바이스
@@ -193,6 +193,8 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 
 ### 공통 사항
 - 모든 엔드포인트는 `Authorization: Bearer <session_jwt>` 필요 (앱 자체 로그인 세션, 메일 OAuth 토큰과는 별개)
+  - **예외 (2026-09-23 보완)**: `/auth/gmail/url`과 `/auth/gmail/callback`은 세션을 받기 전에 호출되므로 세션이 필요 없다. 원래 이 문서에는 로그인 엔드포인트가 없어 "세션 JWT를 어디서 받는가"가 비어 있었는데, 온보딩이 "Gmail로 시작하기" 단일 진입점이므로(`06-모바일앱구조.md`) **OAuth 콜백이 곧 회원가입 겸 로그인**이다. 그래서 콜백 응답에 `accessToken`(세션 JWT)을 추가했다
+  - CSRF는 `/auth/gmail/url`이 발급한 `state`(서명된 단기 토큰)를 콜백에서 검증해 막는다. 서버에 상태를 저장하지 않는다
 - 에러 응답 포맷 통일: `{ error: { code: string, message: string } }` — 프런트에서 `code`로 분기 처리 (예: `GMAIL_TOKEN_REVOKED`, `GMAIL_AUTH_FAILED`)
 - Rate limit: 사용자당 분당 60 요청 (API Gateway 레벨)
 

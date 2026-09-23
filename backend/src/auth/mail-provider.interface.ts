@@ -81,6 +81,7 @@ export interface MailProvider {
   revokeToken(refreshToken: string): Promise<void>;
 
   // 수집
+  fetchAccountEmail(token: ProviderTokenSet): Promise<string>;
   registerWatch(token: ProviderTokenSet): Promise<WatchHandle>;
   fetchNewMessages(
     token: ProviderTokenSet,

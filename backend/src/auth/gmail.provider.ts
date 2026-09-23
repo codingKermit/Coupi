@@ -231,6 +231,21 @@ export class GmailProvider implements MailProvider {
     return extractBody(data.payload ?? undefined);
   }
 
+  /** 연결한 계정의 메일 주소. 사용자 식별과 watch 알림 매칭에 쓴다. */
+  async fetchAccountEmail(token: ProviderTokenSet): Promise<string> {
+    const gmail = this.gmailFor(token);
+
+    const { data } = await this.call(() =>
+      gmail.users.getProfile({ userId: 'me' }),
+    );
+
+    if (!data.emailAddress) {
+      throw new Error('getProfile 응답에 emailAddress가 없다.');
+    }
+
+    return data.emailAddress;
+  }
+
   // ---------------------------------------------------------------- 내부 구현
 
   private newClient(): OAuth2Client {
