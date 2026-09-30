@@ -99,7 +99,7 @@ CREATE TABLE mail_accounts (
   encrypted_refresh_token TEXT,            -- AES-256-GCM, KMS 관리 키로 암호화. 연결 해제 시 NULL로 덮어써 실제 제거 (07번 문서 "토큰 폐기 흐름")
   encrypted_access_token TEXT,
   access_token_expires_at TIMESTAMPTZ,
-  cursor JSONB DEFAULT '{}',               -- { historyId }
+  cursor JSONB DEFAULT '{}',               -- { historyId, watchExpiresAt } — watchExpiresAt은 2026-09-30 추가 (watch 갱신 배치가 만료 임박 계정만 고르기 위해 필요, 01번 문서 참고)
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'reauth_required', 'auth_failed', 'revoked')),
   consecutive_failures SMALLINT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { parseCursor, type MailCursor } from './mail-cursor';
 import { GmailProvider } from './gmail.provider';
 import {
   ReauthRequiredError,
@@ -15,7 +16,7 @@ export interface MailAccountWithToken {
   id: string;
   userId: string;
   providerAccountEmail: string;
-  cursor: { historyId?: string };
+  cursor: MailCursor;
   token: ProviderTokenSet;
 }
 
@@ -84,7 +85,7 @@ export class MailAccountTokenService {
       id: account.id,
       userId: account.userId,
       providerAccountEmail: account.providerAccountEmail,
-      cursor: (account.cursor as { historyId?: string } | null) ?? {},
+      cursor: parseCursor(account.cursor),
       token,
     };
   }
@@ -102,12 +103,46 @@ export class MailAccountTokenService {
     });
   }
 
-  /** 수집 성공 후 커서를 저장한다. */
+  /**
+   * 수집 성공 후 커서를 저장한다.
+   *
+   * `cursor`는 watch 만료 시각도 함께 담으므로 통째로 덮어쓰지 않고 병합한다.
+   */
   async saveCursor(mailAccountId: string, historyId: string): Promise<void> {
     await this.prisma.mailAccount.update({
       where: { id: mailAccountId },
-      data: { cursor: { historyId }, consecutiveFailures: 0 },
+      data: {
+        cursor: { ...(await this.readCursor(mailAccountId)), historyId },
+        consecutiveFailures: 0,
+      },
     });
+  }
+
+  /** watch 재구독 결과를 저장한다 (`docs/01-메일연동.md` "Pub/Sub Watch 갱신 배치"). */
+  async saveWatch(
+    mailAccountId: string,
+    historyId: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.prisma.mailAccount.update({
+      where: { id: mailAccountId },
+      data: {
+        cursor: {
+          ...(await this.readCursor(mailAccountId)),
+          historyId,
+          watchExpiresAt: expiresAt.toISOString(),
+        },
+      },
+    });
+  }
+
+  private async readCursor(mailAccountId: string): Promise<MailCursor> {
+    const row = await this.prisma.mailAccount.findUnique({
+      where: { id: mailAccountId },
+      select: { cursor: true },
+    });
+
+    return parseCursor(row?.cursor);
   }
 
   private async refreshAndStore(

@@ -9,6 +9,7 @@ import { CouponClassifierModule } from './coupon-classifier/coupon-classifier.mo
 import { CouponsModule } from './coupons/coupons.module';
 import { DevicesModule } from './devices/devices.module';
 import { HealthModule } from './health/health.module';
+import { JobsModule } from './jobs/jobs.module';
 import { MailIngestModule } from './mail-ingest/mail-ingest.module';
 import { NotificationModule } from './notification/notification.module';
 import { UserModule } from './user/user.module';
@@ -26,6 +27,7 @@ import { validateEnv } from './config/env.validation';
     HealthModule,
     AuthModule,
     MailIngestModule,
+    JobsModule,
     CouponClassifierModule,
     NotificationModule,
     UserModule,

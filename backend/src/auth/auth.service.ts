@@ -3,6 +3,7 @@ import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { GmailProvider } from './gmail.provider';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { MailAccountTokenService } from './mail-account-token.service';
 import { SessionService } from './session.service';
 
 export interface AuthUrlResult {
@@ -32,6 +33,7 @@ export class AuthService {
     private readonly gmail: GmailProvider,
     private readonly encryption: EncryptionService,
     private readonly sessions: SessionService,
+    private readonly tokens: MailAccountTokenService,
   ) {}
 
   getAuthUrl(): AuthUrlResult {
@@ -108,10 +110,11 @@ export class AuthService {
   ): Promise<void> {
     try {
       const handle = await this.gmail.registerWatch(token);
-      await this.prisma.mailAccount.update({
-        where: { id: mailAccountId },
-        data: { cursor: { historyId: handle.historyId } },
-      });
+      await this.tokens.saveWatch(
+        mailAccountId,
+        handle.historyId,
+        handle.expiresAt,
+      );
     } catch (error) {
       // watch 등록에 실패해도 연결 자체는 성공으로 둔다. 6시간 보정 폴링이
       // 메일을 가져오고, 갱신 배치가 다음 주기에 watch를 다시 시도한다 (docs/01, docs/08).
