@@ -54,7 +54,7 @@ export class GmailSafetyPollJob {
         await this.publisher.publish(this.ingestTopic, payload, account.id);
         enqueued += 1;
       } catch (error) {
-        // 한 계정 실패가 나머지를 막지 않게 한다. 다음 6시간 주기에 다시 시도된다.
+        // 한 계정 실패가 나머지를 막지 않게 한다. 실패 여부는 아래에서 한꺼번에 알린다.
         this.logger.warn(
           `보정 폴링 적재 실패 계정=${account.id}: ${
             error instanceof Error ? error.message : String(error)
@@ -64,6 +64,16 @@ export class GmailSafetyPollJob {
     }
 
     this.logger.log(`보정 폴링 — 계정 ${accounts.length} 적재 ${enqueued}`);
+
+    // 하나라도 실패했으면 배치를 실패로 끝낸다. 이 잡은 webhook 유실을 메우는
+    // 안전망이라, 조용히 실패하면 안전망 자체가 사라진 것을 아무도 모른다.
+    // 재시도로 중복 발행이 생겨도 processed_mails 유니크 제약이 걸러낸다 (docs/08).
+    const failed = accounts.length - enqueued;
+    if (failed > 0) {
+      throw new Error(
+        `보정 폴링 적재 실패 ${failed}/${accounts.length}건 — 배치를 실패로 보고한다`,
+      );
+    }
 
     return { accounts: accounts.length, enqueued };
   }

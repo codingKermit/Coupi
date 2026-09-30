@@ -57,12 +57,13 @@ describe('GmailSafetyPollJob', () => {
     expect(published[0].orderingKey).toBe('acc-1');
   });
 
-  it('한 계정이 실패해도 나머지를 계속 처리한다', async () => {
+  it('한 계정이 실패해도 나머지를 계속 처리하되, 배치는 실패로 끝낸다', async () => {
     const { job, published } = build(['acc-1', 'acc-2', 'acc-3'], ['acc-2']);
 
-    const result = await job.run();
+    // 안전망이 조용히 실패하면 안전망이 사라진 것을 아무도 모른다.
+    await expect(job.run()).rejects.toThrow('1/3건');
 
-    expect(result).toEqual({ accounts: 3, enqueued: 2 });
+    // 실패한 계정만 빠지고 나머지는 발행됐다.
     expect(published.map((p) => p.orderingKey)).toEqual(['acc-1', 'acc-3']);
   });
 

@@ -31,13 +31,20 @@ export class PubSubPublisher {
   ): Promise<string> {
     const topic = this.topicFor(topicName, orderingKey !== undefined);
 
-    const messageId = await topic.publishMessage({
-      data: Buffer.from(JSON.stringify(payload), 'utf8'),
-      ...(orderingKey ? { orderingKey } : {}),
-    });
+    try {
+      const messageId = await topic.publishMessage({
+        data: Buffer.from(JSON.stringify(payload), 'utf8'),
+        ...(orderingKey ? { orderingKey } : {}),
+      });
 
-    this.logger.debug(`발행: ${topicName} messageId=${messageId}`);
-    return messageId;
+      this.logger.debug(`발행: ${topicName} messageId=${messageId}`);
+      return messageId;
+    } catch (error) {
+      // 순서 보장 토픽은 한 번 실패하면 클라이언트가 그 키를 영구 정지시킨다.
+      // 풀어주지 않으면 해당 계정의 이후 메시지가 전부 실패한다.
+      if (orderingKey) topic.resumePublishing(orderingKey);
+      throw error;
+    }
   }
 
   private topicFor(name: string, ordered: boolean): Topic {

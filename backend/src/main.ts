@@ -22,6 +22,33 @@ function isJobName(value: string | undefined): value is JobName {
 }
 
 /**
+ * 처리되지 않은 Promise 거부로 프로세스가 죽지 않게 한다.
+ *
+ * Node 15부터 기본 동작이 프로세스 종료다. 그런데 GCP 클라이언트 라이브러리는
+ * 백그라운드에서 스텁 생성·배치 전송을 하다가 우리가 await하지 않는 경로로
+ * 거부를 던질 수 있다. 그대로 두면 발행 한 번 실패에 Cloud Run 컨테이너가 죽고,
+ * 처리 중이던 다른 요청까지 함께 날아간다 (2026-09-30 실제로 확인).
+ *
+ * @param mode 서버와 배치의 올바른 대응이 서로 다르다.
+ *   - `server`: 기록만 하고 계속 받는다. 한 요청의 실패가 전체 가용성을 깨면 안 된다.
+ *   - `job`: 기록하고 **종료 코드를 실패로 바꾼다.** 그냥 삼키면 실패한 배치가
+ *     성공으로 보고되어 조용히 누락된다.
+ */
+function installCrashGuards(mode: 'server' | 'job'): void {
+  process.on('unhandledRejection', (reason) => {
+    Logger.error(
+      reason instanceof Error
+        ? (reason.stack ?? reason.message)
+        : String(reason),
+      undefined,
+      'UnhandledRejection',
+    );
+
+    if (mode === 'job') process.exitCode = 1;
+  });
+}
+
+/**
  * 서버와 배치가 같은 이미지를 쓴다. 인자가 있으면 배치, 없으면 HTTP 서버로 뜬다.
  * 이미지를 하나로 유지하면 빌드·배포 파이프라인도 하나면 된다 (`docs/05`).
  */
@@ -60,6 +87,7 @@ async function bootstrap(): Promise<void> {
   const arg = process.argv[2];
 
   if (arg === undefined) {
+    installCrashGuards('server');
     await runServer();
     return;
   }
@@ -74,6 +102,7 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
+  installCrashGuards('job');
   await runJob(arg);
 }
 
