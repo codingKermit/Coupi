@@ -1,4 +1,12 @@
 import { Module } from '@nestjs/common';
 
-@Module({})
+import { AuthModule } from '../auth/auth.module';
+import { CouponsController } from './coupons.controller';
+import { CouponsService } from './coupons.service';
+
+@Module({
+  imports: [AuthModule],
+  controllers: [CouponsController],
+  providers: [CouponsService],
+})
 export class CouponsModule {}

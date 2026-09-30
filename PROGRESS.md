@@ -92,7 +92,7 @@
 - [ ] 쿠폰 목록 화면 (필터 탭, 카드 UI, pull-to-refresh)
 - [ ] 쿠폰 상세 화면 ("사용 완료로 표시"/"숨기기" 액션은 3단계로 미룸, `docs/06-모바일앱구조.md`)
 - [ ] 설정 화면 (연결 계정 관리, 알림 on/off)
-- [ ] `POST /devices` 디바이스 토큰 등록 연동
+- [x] `POST /devices` 디바이스 토큰 등록 연동 — 서버 구현 완료(upsert로 `onTokenRefresh` 재등록 대응), 앱 연동은 2단계
 - [x] NotificationService: FCM 발송 구현, 페이로드 규격 적용 (`docs/04-푸시알림.md`) — HTTP v1 직접 호출, 다중 디바이스 전체 발송, 부분 실패 시 성공분 건너뛰고 재시도
 - [ ] 포그라운드/백그라운드 푸시 수신 및 딥링크 처리
 - [x] 디바이스 토큰 무효화(`UNREGISTERED`) 처리 구현 — 영구 실패로 분류해 재시도하지 않고 `devices` 레코드 즉시 삭제
@@ -150,3 +150,4 @@
 | 2026-09-23 | NotificationService 구현 — FCM HTTP v1 발송(`fcm.client.ts`, firebase-admin 없이 ADC+fetch), 푸시 문구 생성, 다중 디바이스 전체 발송, 무효 토큰 즉시 삭제, 부분 실패 시 성공분 제외 재시도. `/internal/push-dispatch`와 `/internal/expiry-reminder` 핸들러 추가. Pub/Sub 전용이던 가드를 `InternalCallerGuard`로 일반화(Cloud Tasks도 OIDC로 호출). Cloud Tasks 재시도 정책을 `docs/04` 기준에 맞춰 조정하고 근사임을 문서화. 테스트 124건 통과 |
 | 2026-09-23 | OAuth 엔드포인트와 계정 연결 해제 구현 — 세션 JWT(`SessionService`, state 기반 CSRF 방지), `SessionGuard`, `GET /auth/gmail/url`, `POST /auth/gmail/callback`(회원가입 겸 로그인 + watch 등록), `DELETE /mail-accounts/:id`. 설계 공백 두 건을 바로잡았다: `docs/03`에 로그인 엔드포인트가 없어 세션 JWT 출처가 비어 있던 문제(콜백이 발급하도록 보완), `encrypted_refresh_token`이 NOT NULL이라 `docs/07`의 "NULL로 덮어쓰기" 절차와 충돌하던 문제(nullable로 변경). `@nestjs/jwt` v11이 ESM 전용이라 `jsonwebtoken` 직접 사용으로 교체. 테스트 132건 통과 |
 | 2026-09-30 | 배치 2종 구현 — `gmail-watch-renewal`(만료 3일 이내 계정만 재구독, 연속 실패 3회 시 재인증 전환), `gmail-safety-poll`(활성 계정을 수집 큐에 재적재). 서버와 배치가 같은 이미지를 쓰도록 `main.ts`에 잡 러너를 두고 `Dockerfile` 추가. watch 만료 시각을 둘 곳이 없어 `mail_accounts.cursor`를 `{ historyId, watchExpiresAt }`으로 확장하고 `docs/01`·`docs/03`에 기록. 테스트 143건 통과 |
+| 2026-09-30 | REST API 구현 — `GET /coupons`(탭별 필터 active/expiring/expired, 정렬), `GET /coupons/:id`, `POST /devices`, `DELETE /devices/:id`, `PATCH /users/me/notification-settings`. 조회는 전부 `userId`를 조건에 넣어 타인 데이터 접근을 막는다. 응답 형태가 정의돼 있지 않던 `Coupon`을 화면 요구사항 기준으로 정하고 `docs/03`에 기록. 만료 처리 배치 대신 조회 시점 판단을 택함. `docs/06`의 "쿠폰 코드 복사 버튼"은 컬럼·추출기가 모두 없어 미구현임을 문서에 명시. 테스트 160건 통과 |

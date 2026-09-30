@@ -191,6 +191,25 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 | PATCH | `/coupons/:id` | 쿠폰 상태 변경 (사용함/숨김 표시) — **3단계 베타에서 활성화** | `{ status: 'used' \| 'dismissed' }` | `200` |
 | POST | `/coupons/:id/feedback` | 오탐지 신고 — **3단계 베타 필수** (정확도 측정의 유일한 실측 수단, 02번 문서 참고) | `{ isAccurate: boolean }` | `204` |
 
+**`Coupon` 응답 형태 (2026-09-30 정의)**: 원래 이 문서는 응답을 `Coupon`이라고만 적고 형태를 정의하지 않았다. `06-모바일앱구조.md`의 목록·상세 화면이 실제로 쓰는 필드에 맞춰 아래로 정한다.
+
+```ts
+interface Coupon {
+  id: string;
+  brandName: string;        // 발신자 헤더에서 뽑은 표시 이름 — 카드에 노출
+  discount: string | null;
+  expiryDate: string | null; // ISO 날짜 (YYYY-MM-DD)
+  conditions: string | null;
+  status: 'active' | 'expired' | 'used' | 'dismissed';
+  sourceMailUrl: string;    // 원본 메일 링크 (본문을 저장하지 않으므로 항상 제공자로 보낸다)
+  createdAt: string;        // ISO 8601
+}
+```
+
+`status` 쿼리 파라미터는 목록 화면의 탭에 대응한다: `active`(사용 가능) / `expiring`(D-3 이내) / `expired`(지난 쿠폰). `sort`는 `expiry_asc`(기본) / `created_desc`.
+
+**만료 처리 배치는 두지 않는다.** 만료된 쿠폰을 `status='expired'`로 바꾸는 배치 대신 조회 시점에 만료일로 판단한다. 배치 하나를 줄이면서도 결과가 같고, 사용자가 보는 목록은 항상 최신이다.
+
 ### 공통 사항
 - 모든 엔드포인트는 `Authorization: Bearer <session_jwt>` 필요 (앱 자체 로그인 세션, 메일 OAuth 토큰과는 별개)
   - **예외 (2026-09-23 보완)**: `/auth/gmail/url`과 `/auth/gmail/callback`은 세션을 받기 전에 호출되므로 세션이 필요 없다. 원래 이 문서에는 로그인 엔드포인트가 없어 "세션 JWT를 어디서 받는가"가 비어 있었는데, 온보딩이 "Gmail로 시작하기" 단일 진입점이므로(`06-모바일앱구조.md`) **OAuth 콜백이 곧 회원가입 겸 로그인**이다. 그래서 콜백 응답에 `accessToken`(세션 JWT)을 추가했다
