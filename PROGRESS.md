@@ -41,7 +41,7 @@
 - [ ] (블로킹) dev/prod GCP 프로젝트 생성
 - [ ] Terraform 상태 저장용 GCS 버킷 생성 (`infra/terraform/README.md` "사전 준비")
 - [ ] 로컬에 gcloud CLI, Terraform 설치 (현재 미설치) + `gcloud auth application-default login`
-- [ ] 로컬에 Docker Desktop 설치 (현재 미설치 — 로컬 PostgreSQL/Pub-Sub 에뮬레이터 구동용)
+- [ ] Docker Desktop 또는 gcloud CLI 설치 — DB는 Neon으로 해결됐고, 이제 Pub/Sub 에뮬레이터 용도로만 필요하다 (메일 수집→판별 경로 로컬 검증용)
 - [ ] Secret Manager에 실제 비밀값 4건 입력 (db-password, gmail-oauth-client-secret, encryption-master-key, session-jwt-secret)
 
 **인프라/기본 세팅**
@@ -51,7 +51,8 @@
 - [x] Terraform 프로젝트 구성 — 콘솔 조작 없이 IaC로만 관리 (`infra/terraform/`) ← **코드 작성 완료, 아직 apply 안 됨. terraform 미설치로 `validate`도 미실행**
 - [ ] dev / prod 2개 환경 분리, 환경별 GCP 프로젝트 생성 (staging은 3단계 진입 시 추가)
 - [ ] Cloud Run 서비스 2개(API, 워커) + Cloud Run Jobs(배치) 실제 배포
-- [ ] Cloud SQL(PostgreSQL) 인스턴스 생성 및 Prisma 마이그레이션으로 `docs/03-API-DB-스펙.md`의 전체 스키마 적용 — `coupons.used_at` 포함 (3단계용 선반영 컬럼, 마이그레이션 회피 목적)
+- [ ] Cloud SQL(PostgreSQL) 인스턴스 생성 — **dev는 Neon에 적용 완료(2026-09-30)**, prod는 GCP 계정 이후
+- [x] Prisma 마이그레이션으로 `docs/03-API-DB-스펙.md`의 전체 스키마 적용 — Neon(PG18)에서 검증 완료. CHECK 제약 8개·부분 인덱스 2개 반영 및 거부 동작 확인
 - [ ] Pub/Sub 토픽·구독 구성 (Gmail watch 알림 수신 겸 메일 수집 큐) + Cloud Tasks 큐 구성 (푸시 발송·만료 리마인더 예약)
 - [ ] Cloud Scheduler → Cloud Run Jobs 배치 트리거 구성
 - [ ] GCP Secret Manager + Cloud KMS 키(마스터 키) 세팅 — 실제 비밀값 입력은 사용자가 직접 수행 (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
@@ -71,7 +72,7 @@
 - [x] `processed_mails` 유니크 제약 기반 중복 제거 확인 — 사전 조회 + P2002 처리로 at-least-once 대응
 
 **쿠폰 판별 (CouponClassifierService, MVP: LLM 미사용)**
-- [ ] `filter_domains`/`filter_keywords` 초기 시드 데이터 적재 — 시드 스크립트 작성 완료(`backend/prisma/seed.ts`, 키워드 13종), 실제 적재는 DB 필요. `filter_domains`는 발신자 집계 후 채운다
+- [x] `filter_keywords` 초기 시드 데이터 적재 — Neon에 13종 적재 완료, 재실행 멱등성 확인. `filter_domains`는 발신자 집계 후 채운다
 - [x] 규칙 필터 로직 구현 (도메인 우선 → 키워드 매칭) — `backend/src/coupon-classifier/rule-filter.service.ts`, 5분 캐시 + 서브도메인/공백표기 대응
 - [x] `CouponExtractor` 인터페이스 정의 (`backend/src/coupon-classifier/extractors/coupon-extractor.interface.ts`, `docs/02-쿠폰판별로직.md`)
 - [x] 범용 정규식 파서(`GenericRegexExtractor`) 구현 (할인율/만료일/조건/스팸 키워드 패턴) — 만료일 연도 추론과 오파싱 방어 포함
@@ -152,3 +153,4 @@
 | 2026-09-30 | 배치 2종 구현 — `gmail-watch-renewal`(만료 3일 이내 계정만 재구독, 연속 실패 3회 시 재인증 전환), `gmail-safety-poll`(활성 계정을 수집 큐에 재적재). 서버와 배치가 같은 이미지를 쓰도록 `main.ts`에 잡 러너를 두고 `Dockerfile` 추가. watch 만료 시각을 둘 곳이 없어 `mail_accounts.cursor`를 `{ historyId, watchExpiresAt }`으로 확장하고 `docs/01`·`docs/03`에 기록. 테스트 143건 통과 |
 | 2026-09-30 | REST API 구현 — `GET /coupons`(탭별 필터 active/expiring/expired, 정렬), `GET /coupons/:id`, `POST /devices`, `DELETE /devices/:id`, `PATCH /users/me/notification-settings`. 조회는 전부 `userId`를 조건에 넣어 타인 데이터 접근을 막는다. 응답 형태가 정의돼 있지 않던 `Coupon`을 화면 요구사항 기준으로 정하고 `docs/03`에 기록. 만료 처리 배치 대신 조회 시점 판단을 택함. `docs/06`의 "쿠폰 코드 복사 버튼"은 컬럼·추출기가 모두 없어 미구현임을 문서에 명시. 테스트 160건 통과 |
 | 2026-09-30 | dev DB를 Neon(무료 서버리스 Postgres)으로 결정 — 로컬 DB 서버를 두지 않기로 했고 GCP 계정이 없어 Cloud SQL을 띄울 수 없다. Supabase는 1주 무활동 정지 때문에 배제. 운영은 CASA 사유로 Cloud SQL 유지. Neon의 풀링/직접 엔드포인트 분리에 맞춰 `schema.prisma`에 `directUrl` 추가, 환경변수를 `DATABASE_URL`/`DIRECT_DATABASE_URL`로 분리. `docs/10`에 결정 기록 |
+| 2026-09-30 | Neon(PostgreSQL 18)에 dev DB 구축 완료 — 최초 마이그레이션 적용, CHECK 제약 8개·부분 인덱스 2개 반영 및 거부 동작 검증, 시드 13종 적재(멱등성 확인). 서버 기동 후 실제 데이터로 REST API 전수 확인: 쿠폰 필터 3종·정렬·상세, 디바이스 upsert/삭제, 알림 설정, 미인증 401, 타인 데이터 404/403, 잘못된 enum 400. Neon 연결 문자열의 `channel_binding=require`가 Prisma P1010을 유발해 `sslmode=verify-full&channel_binding=disable` 조합으로 해결하고 문서화 |

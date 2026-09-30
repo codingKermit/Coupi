@@ -31,3 +31,20 @@ DDL 주석("향후 제공자 추가 시 CHECK만 확장")에 따른 것으로, P
 
 dev와 prod의 스키마를 동일하게 유지하는 유일한 수단이다 (`docs/10-기술스택결정.md`).
 prod 적용은 `prisma migrate deploy`를 사용한다 (`migrate dev`는 prod에서 쓰지 않는다).
+
+## 검증 기록 (2026-09-30)
+
+위 절차를 Neon(PostgreSQL 18)에서 실제로 돌려 확인했다.
+
+- 최초 마이그레이션 생성 → `constraints.sql` 병합 → 적용 성공
+- CHECK 제약 8개, 부분 인덱스 2개가 모두 DB에 반영됐다
+- 잘못된 값을 직접 INSERT하면 8개 제약 전부 `23514`로 거부한다
+- CASCADE 삭제도 의도대로 동작한다 (사용자 삭제 시 하위 레코드 정리)
+
+**Prisma가 만든 SQL과 `docs/03` DDL의 차이 한 가지**: 타임스탬프 기본값이 DDL에는
+`now()`, Prisma 생성 SQL에는 `CURRENT_TIMESTAMP`로 나온다. PostgreSQL에서 둘은 같은
+함수라 동작 차이가 없다.
+
+**`updated_at`은 DB 트리거가 아니라 애플리케이션이 갱신한다** (`@updatedAt`).
+`docs/03` DDL에도 트리거가 없으므로 동작은 같지만, SQL로 직접 UPDATE하면
+`updated_at`이 갱신되지 않는다는 점은 알고 있어야 한다.
