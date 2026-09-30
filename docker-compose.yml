@@ -1,5 +1,10 @@
 # 로컬 개발용 의존 서비스. 운영 인프라는 infra/terraform/ 참고.
-# 사용: docker compose up -d
+#
+# DB는 Neon(원격)을 쓰기로 했으므로(docs/10-기술스택결정.md) 아래 postgres 서비스는
+# 선택 사항이다. 오프라인 작업이나 파괴적인 스키마 실험이 필요할 때만 띄운다.
+# 기본 경로는 .env의 DATABASE_URL을 Neon으로 두는 것이다.
+#
+# 사용: docker compose up -d pubsub   (필요하면 postgres도 함께)
 services:
   postgres:
     image: postgres:16-alpine

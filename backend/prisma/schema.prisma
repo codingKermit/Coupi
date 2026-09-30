@@ -14,7 +14,15 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+
+  // 런타임용. Neon에서는 풀링(pgbouncer) 엔드포인트를 쓴다 — 서버리스 환경에서
+  // 커넥션이 금방 고갈되기 때문이다. Cloud SQL에서는 그냥 커넥터 주소를 넣는다.
+  url = env("DATABASE_URL")
+
+  // 마이그레이션용. pgbouncer를 거치면 prisma migrate가 쓰는 세션 수준 기능
+  // (advisory lock 등)이 동작하지 않으므로 직접 연결이 필요하다.
+  // 풀링이 없는 환경에서는 DATABASE_URL과 같은 값을 넣으면 된다.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model User {

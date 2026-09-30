@@ -30,12 +30,13 @@ src/
 
 ## 로컬 개발
 
-사전 준비: Node 22+ (현재 24), Docker Desktop.
+사전 준비: Node 22+ (현재 24). DB는 Neon(원격)을 쓰므로 로컬 DB 서버가 필요 없다 (`docs/10-기술스택결정.md`).
+메일 수집·판별 경로까지 로컬에서 돌리려면 Pub/Sub 에뮬레이터가 필요하고, 그때는 Docker나 gcloud CLI가 있어야 한다.
 
 ```bash
 cd backend
 cp .env.example .env          # 값을 채운다
-docker compose -f ../docker-compose.yml up -d   # PostgreSQL + Pub/Sub 에뮬레이터
+# Neon 콘솔에서 연결 문자열 2개(pooled / direct)를 복사해 .env에 넣는다
 npm install
 npx prisma migrate dev        # 최초 1회 — prisma/README.md의 CHECK 제약 절차를 반드시 따를 것
 npm run start:dev

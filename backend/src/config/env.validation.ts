@@ -15,6 +15,8 @@ export const envSchema = z.object({
 
   // 데이터베이스
   DATABASE_URL: z.string().min(1),
+  /** prisma migrate 전용 직접 연결. 앱 런타임은 쓰지 않으므로 선택값이다. */
+  DIRECT_DATABASE_URL: z.string().optional(),
 
   // GCP 공통
   GCP_PROJECT_ID: z.string().min(1),
