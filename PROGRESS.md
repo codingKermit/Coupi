@@ -86,13 +86,13 @@
 
 ## 2단계 — 모바일 앱 프로토타입 (`docs/04`, `06`)
 
-- [ ] React Native + Expo(development build) 프로젝트 초기 세팅 (React Query, React Navigation, Firebase Messaging) — macOS 미보유로 iOS 빌드는 EAS Build 사용 (`docs/10-기술스택결정.md`)
+- [x] React Native + Expo 프로젝트 초기 세팅 (React Query, React Navigation, Zustand) — `mobile/`, Expo SDK 57 / RN 0.86. Android 번들 빌드 통과. Firebase Messaging은 GCP 프로젝트 연동 후
 - [ ] EAS Build 설정 및 iOS/Android 첫 빌드 통과 확인
 - [ ] (사용자 직접) Apple Developer Program 등록 — iOS 개발 빌드를 실기기에 설치하려면 필수 (`docs/10-기술스택결정.md` "위임할 수 없는 작업")
-- [ ] 온보딩 화면: 인트로 → 권한 안내 → Gmail OAuth 웹뷰 (메일 서비스 선택 화면 없음, `docs/06-모바일앱구조.md`)
-- [ ] 쿠폰 목록 화면 (필터 탭, 카드 UI, pull-to-refresh)
-- [ ] 쿠폰 상세 화면 ("사용 완료로 표시"/"숨기기" 액션은 3단계로 미룸, `docs/06-모바일앱구조.md`)
-- [ ] 설정 화면 (연결 계정 관리, 알림 on/off)
+- [x] 온보딩 화면: 권한 안내 → Gmail OAuth (메일 서비스 선택 화면 없음, `docs/06-모바일앱구조.md`) — 실기기 동작 확인은 미실시
+- [x] 쿠폰 목록 화면 (필터 탭 3종, 카드 UI, D-day 배지, pull-to-refresh, 빈 상태) — 실기기 동작 확인은 미실시
+- [x] 쿠폰 상세 화면 ("사용 완료로 표시"/"숨기기" 액션은 3단계로 미룸, `docs/06-모바일앱구조.md`) — 원본 메일 링크 포함
+- [x] 설정 화면 (알림 on/off, 로그아웃) — 연결 계정 목록·개별 해제 UI는 미구현
 - [x] `POST /devices` 디바이스 토큰 등록 연동 — 서버 구현 완료(upsert로 `onTokenRefresh` 재등록 대응), 앱 연동은 2단계
 - [x] NotificationService: FCM 발송 구현, 페이로드 규격 적용 (`docs/04-푸시알림.md`) — HTTP v1 직접 호출, 다중 디바이스 전체 발송, 부분 실패 시 성공분 건너뛰고 재시도
 - [ ] 포그라운드/백그라운드 푸시 수신 및 딥링크 처리
@@ -158,3 +158,4 @@
 | 2026-10-01 | **Gmail OAuth 실연동 성공** — GCP 프로젝트(`coupi-dev`) + OAuth 클라이언트 발급 후 실제 Gmail 계정 연결 완료. 검증: 토큰 envelope 암호화 저장(평문 노출 없음), 복호화, Gmail 프로필 조회, 최근 7일 메일 33건 조회, 제목·발신자 파싱 33/33, 본문 MIME 순회 + HTML 평문화. watch 등록은 Pub/Sub 토픽 부재로 실패했으나 설계대로 연결은 성공 처리되고 보정 폴링에 위임됨(결제 미등록이라 Pub/Sub 사용 불가). `docs/03`이 콜백을 POST로만 정의했는데 Google은 GET으로 리디렉션해 흐름이 완성되지 않던 문제를 발견, GET 핸들러 추가하고 문서 반영 |
 | 2026-10-01 | 발신자 집계 1차 실행 (`backend/scripts/aggregate-senders.ts`, `diagnose-filter.ts` 신규) — 본인 계정 90일 351건 측정. **중요한 수치 2건**: (1) 현재 규칙 필터 통과율이 2.6%(9/351)에 그침. 본문까지 보면 2배로 늘지만 여전히 낮음. (2) **Gmail 자체 프로모션 카테고리는 44건(12.5%)을 잡는데, 우리 필터는 그 중 9건(20.5%)만 통과시킴** — 즉 프로모션 메일의 약 80%를 놓치고 있다. 또한 이 계정은 LinkedIn이 202/351(58%)로 한국 이커머스 발신자가 거의 없어 8곳 슬롯을 채울 수 없다 — `docs/02`가 정한 대로 지인 계정 3~5개가 필요 |
 | 2026-10-01 | 추출 품질 1차 측정 (`backend/scripts/measure-extraction.ts`, `review-holds.ts` 신규) — Gmail 프로모션 44건에 추출·판정 파이프라인 실행. 발송 대상 1건(2.3%), 보류 33건(75%), 만료 10건(22.7%). **ezwel만 범용 파서가 읽어낸다**(12건 중 11건 만료일 파싱, 그 중 10건은 실제 만료라 올바르게 걸러짐). doordash·xcaret은 25건 전부 만료일 미검출. 단, **보류 33건에는 "파서가 놓친 진짜 쿠폰"과 "애초에 쿠폰이 아닌 뉴스레터"가 섞여 있어 자동 지표로 구분 불가** — `docs/02`의 "미탐지 프록시" 절차대로 사람 검토가 필요하다. `review-holds.csv`(gitignore)로 검토 목록 생성 |
+| 2026-10-01 | **2단계 모바일 앱 착수** — `mobile/` Expo SDK 57 / RN 0.86 / React 19. React Query + Zustand + React Navigation 7. 화면 4종(온보딩·쿠폰 목록·상세·설정), 세션 토큰은 SecureStore(키체인)에 보관. Android 번들 빌드 통과(2.1MB). OAuth 앱 복귀를 위해 백엔드에 `OAUTH_SUCCESS_REDIRECT` 설정을 추가(설정 시 302 딥링크, 미설정 시 기존 JSON 유지). 딥링크 스킴을 `myapp://`에서 `coupi://`로 확정하고 `docs/06`에 반영. **실기기 동작은 아직 확인하지 못했다** — 번들 빌드까지만 검증 |

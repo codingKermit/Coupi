@@ -69,6 +69,12 @@ export const envSchema = z.object({
   // 모바일 앱
   /** 푸시 딥링크 스킴 (docs/04-푸시알림.md) */
   APP_DEEPLINK_SCHEME: z.string().min(1).default('coupi'),
+  /**
+   * OAuth 성공 후 앱으로 돌려보낼 주소. 설정하면 콜백이 302로 리디렉션하고,
+   * 비우면 JSON을 그대로 반환한다(로컬 확인용).
+   * 값은 우리 설정에서만 오므로 open redirect 위험이 없다.
+   */
+  OAUTH_SUCCESS_REDIRECT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

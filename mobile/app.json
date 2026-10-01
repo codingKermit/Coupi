@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "쿠피",
+    "slug": "coupi",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "coupi",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.codingkermit.coupi"
+    },
+    "android": {
+      "package": "com.codingkermit.coupi",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ]
+  }
+}
