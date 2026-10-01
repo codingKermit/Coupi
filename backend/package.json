@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "senders": "ts-node scripts/aggregate-senders.ts"
   },
   "dependencies": {
     "@google-cloud/kms": "^6.2.0",
