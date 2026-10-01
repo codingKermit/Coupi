@@ -22,6 +22,7 @@ Gmail 계정에 도착하는 쿠폰/프로모션 메일을 실시간으로 감�
 | [`docs/`](./docs) | 상세 설계 문서 |
 | [`PROGRESS.md`](./PROGRESS.md) | 작업 진행 체크리스트 — 작업을 재개할 때 가장 먼저 볼 파일 |
 | [`HANDOFF.md`](./HANDOFF.md) | **다른 PC에서 이어받을 때** 읽을 문서 — 환경 복원, 함정, 다음 할 일 |
+| [`CLAUDE.md`](./CLAUDE.md) | Claude Code가 세션 시작 시 자동으로 읽는 작업 지침 |
 
 ## 문서
 
