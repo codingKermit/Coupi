@@ -44,3 +44,6 @@ backend/prisma/migrations/dev.db*
 
 # 테스트 실행 로그
 jest-run.log
+
+# 검토용 메일 목록 (제목 포함 — 커밋 금지)
+review-holds.csv
