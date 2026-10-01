@@ -173,7 +173,8 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 | 메서드 | 경로 | 설명 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
 | GET | `/auth/gmail/url` | Gmail OAuth 인증 URL 발급 | - | `{ url: string, state: string }` |
-| POST | `/auth/gmail/callback` | Gmail 인증 코드 교환 겸 **로그인** | `{ code, state }` | `{ mailAccountId, email, accessToken }` |
+| GET | `/auth/gmail/callback` | **Google이 리디렉션하는 지점.** 동의 후 Google은 GET으로 돌아오므로 이 경로가 실제 흐름이다 | `?code=| POST | `/auth/gmail/callback` | Gmail 인증 코드 교환 겸 **로그인** | `{ code, state }` | `{ mailAccountId, email, accessToken }` |state=` | `{ mailAccountId, email, accessToken }` |
+| POST | `/auth/gmail/callback` | 앱이 코드를 직접 전달하는 경로 (웹뷰에서 리디렉션을 가로채는 방식) | `{ code, state }` | `{ mailAccountId, email, accessToken }` |
 | DELETE | `/mail-accounts/:id` | 계정 연결 해제 (토큰 폐기 + revoke) | - | `204` |
 
 ### 사용자/디바이스
