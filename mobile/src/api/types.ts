@@ -28,3 +28,19 @@ export interface ConnectResult {
   /** 앱 세션 토큰 */
   accessToken: string;
 }
+
+export type MailAccountStatus =
+  | 'active'
+  | 'reauth_required'
+  | 'auth_failed'
+  | 'revoked';
+
+/** 설정 화면과 홈 배너가 쓰는 연결 계정 (`docs/06-모바일앱구조.md`) */
+export interface MailAccountSummary {
+  id: string;
+  email: string;
+  status: MailAccountStatus;
+  /** 재인증이 필요한 상태 — 홈 상단 배너 노출 조건 */
+  needsReauth: boolean;
+  connectedAt: string;
+}

@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/errors/http-exception.filter';
 import { GmailSafetyPollJob } from './jobs/gmail-safety-poll.job';
 import { GmailWatchRenewalJob } from './jobs/gmail-watch-renewal.job';
 
@@ -67,6 +68,9 @@ async function runJob(name: JobName): Promise<void> {
 
 async function runServer(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+
+  // 모든 오류를 { error: { code, message } } 한 형태로 내보낸다 (docs/03)
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({

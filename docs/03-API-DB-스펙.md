@@ -175,7 +175,23 @@ CREATE INDEX idx_notifications_status ON notifications(send_status) WHERE send_s
 | GET | `/auth/gmail/url` | Gmail OAuth 인증 URL 발급 | - | `{ url: string, state: string }` |
 | GET | `/auth/gmail/callback` | **Google이 리디렉션하는 지점.** 동의 후 Google은 GET으로 돌아오므로 이 경로가 실제 흐름이다 | `?code=| POST | `/auth/gmail/callback` | Gmail 인증 코드 교환 겸 **로그인** | `{ code, state }` | `{ mailAccountId, email, accessToken }` |state=` | `{ mailAccountId, email, accessToken }` |
 | POST | `/auth/gmail/callback` | 앱이 코드를 직접 전달하는 경로 (웹뷰에서 리디렉션을 가로채는 방식) | `{ code, state }` | `{ mailAccountId, email, accessToken }` |
+| GET | `/mail-accounts` | 연결된 계정 목록 (2026-10-01 추가 — `06-모바일앱구조.md`의 설정 화면이 요구하는데 조회 수단이 없었다. 홈의 재인증 배너도 이 응답으로 판단한다) | - | `{ mailAccounts: MailAccountSummary[] }` |
 | DELETE | `/mail-accounts/:id` | 계정 연결 해제 (토큰 폐기 + revoke) | - | `204` |
+
+**`MailAccountSummary` (2026-10-01 정의)**
+
+```ts
+interface MailAccountSummary {
+  id: string;
+  email: string;
+  status: 'active' | 'reauth_required' | 'auth_failed' | 'revoked';
+  needsReauth: boolean;   // status가 reauth_required 또는 auth_failed
+  connectedAt: string;    // ISO 8601
+}
+```
+
+암호화된 토큰 컬럼은 내보내지 않는다 — 암호문이라도 밖으로 나갈 이유가 없다.
+`revoked` 계정은 감사 목적으로 30일 남지만(`07-보안개인정보.md`) 목록에서는 제외한다.
 
 ### 사용자/디바이스
 | 메서드 | 경로 | 설명 | 요청 | 응답 |
@@ -216,6 +232,9 @@ interface Coupon {
   - **예외 (2026-09-23 보완)**: `/auth/gmail/url`과 `/auth/gmail/callback`은 세션을 받기 전에 호출되므로 세션이 필요 없다. 원래 이 문서에는 로그인 엔드포인트가 없어 "세션 JWT를 어디서 받는가"가 비어 있었는데, 온보딩이 "Gmail로 시작하기" 단일 진입점이므로(`06-모바일앱구조.md`) **OAuth 콜백이 곧 회원가입 겸 로그인**이다. 그래서 콜백 응답에 `accessToken`(세션 JWT)을 추가했다
   - CSRF는 `/auth/gmail/url`이 발급한 `state`(서명된 단기 토큰)를 콜백에서 검증해 막는다. 서버에 상태를 저장하지 않는다
 - 에러 응답 포맷 통일: `{ error: { code: string, message: string } }` — 프런트에서 `code`로 분기 처리 (예: `GMAIL_TOKEN_REVOKED`, `GMAIL_AUTH_FAILED`)
+  - **구현 (2026-10-01)**: 전역 예외 필터로 모든 응답을 이 형태로 모은다. Nest 기본 응답은 `{ statusCode, message, error }`라 앱이 두 형태를 다뤄야 했다.
+  - 5xx는 메시지를 밖으로 내보내지 않는다 — 구현 세부가 샌다. 서버 로그에만 남긴다.
+  - 정의된 코드: `GMAIL_TOKEN_REVOKED`, `GMAIL_AUTH_FAILED`, `MAIL_ACCOUNT_ALREADY_CONNECTED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_REQUEST`, `INTERNAL_ERROR` (`backend/src/common/errors/app-error.ts`)
 - Rate limit: 사용자당 분당 60 요청 (API Gateway 레벨)
 
 ## 내부 메시지 스펙

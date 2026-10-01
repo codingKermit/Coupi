@@ -8,10 +8,23 @@
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
 
+/** 서버가 내려주는 오류 코드 (`docs/03-API-DB-스펙.md` "에러 응답 포맷 통일"). */
+export type ErrorCode =
+  | 'GMAIL_TOKEN_REVOKED'
+  | 'GMAIL_AUTH_FAILED'
+  | 'MAIL_ACCOUNT_ALREADY_CONNECTED'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'BAD_REQUEST'
+  | 'INTERNAL_ERROR';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** 분기는 메시지가 아니라 이 값으로 한다 — 문구는 바뀔 수 있다. */
+    readonly code: ErrorCode | null = null,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -45,9 +58,7 @@ export async function apiRequest<T>(
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response));
-  }
+  if (!response.ok) throw await toApiError(response);
 
   // 204 No Content는 본문이 없다.
   if (response.status === 204) return undefined as T;
@@ -56,23 +67,26 @@ export async function apiRequest<T>(
 }
 
 /**
- * 서버는 `{ error: { code, message } }` 형태를 쓰기로 했지만
- * (`docs/03-API-DB-스펙.md` "공통 사항"), Nest 기본 예외는 `{ message }`로 나간다.
- * 둘 다 받아들인다 — 형식 통일은 서버 쪽 과제다.
+ * 서버는 모든 오류를 `{ error: { code, message } }` 한 형태로 내보낸다
+ * (`docs/03-API-DB-스펙.md` "공통 사항"). 다만 프록시 오류 페이지처럼 그 형식을
+ * 따르지 않는 응답도 있을 수 있어 파싱 실패에 대비한다.
  */
-async function readErrorMessage(response: Response): Promise<string> {
+async function toApiError(response: Response): Promise<ApiError> {
   try {
     const data = (await response.json()) as {
-      error?: { message?: string };
-      message?: string | string[];
+      error?: { code?: ErrorCode; message?: string };
     };
 
-    const message = data.error?.message ?? data.message;
-    if (Array.isArray(message)) return message.join(', ');
-    if (message) return message;
+    if (data.error?.message) {
+      return new ApiError(
+        response.status,
+        data.error.message,
+        data.error.code ?? null,
+      );
+    }
   } catch {
-    // 본문이 JSON이 아닐 수 있다 (프록시 오류 페이지 등).
+    // 본문이 JSON이 아니다.
   }
 
-  return `요청 실패 (HTTP ${response.status})`;
+  return new ApiError(response.status, `요청 실패 (HTTP ${response.status})`);
 }

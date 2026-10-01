@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { useCoupons } from '../api/coupons';
+import { useMailAccounts } from '../api/mailAccounts';
 import { theme } from '../theme';
 import type { Coupon, CouponFilter } from '../api/types';
 
@@ -80,6 +81,30 @@ function CouponCard({
   );
 }
 
+/**
+ * 메일 연결이 끊긴 계정이 있으면 홈 상단에 띄운다
+ * (docs/06-모바일앱구조.md "에러/엣지케이스 UI").
+ *
+ * 이 배너가 없으면 사용자는 쿠폰이 안 오는 이유를 알 수 없다 — 토큰이 폐기되면
+ * 수집이 조용히 멈추기 때문이다 (docs/08).
+ */
+function ReauthBanner() {
+  const { data: accounts } = useMailAccounts();
+  const broken = accounts?.filter((a) => a.needsReauth) ?? [];
+
+  if (broken.length === 0) return null;
+
+  return (
+    <View style={styles.banner}>
+      <Text style={styles.bannerTitle}>메일 연결을 다시 확인해주세요</Text>
+      <Text style={styles.bannerBody}>
+        {broken.map((a) => a.email).join(", ")} 계정의 연결이 끊겨 새 쿠폰을
+        받지 못하고 있어요. 설정에서 다시 연결해주세요.
+      </Text>
+    </View>
+  );
+}
+
 export function CouponListScreen({
   onSelect,
 }: {
@@ -90,6 +115,8 @@ export function CouponListScreen({
 
   return (
     <View style={styles.screen}>
+      <ReauthBanner />
+
       <View style={styles.tabs}>
         {TABS.map((tab) => (
           <Pressable
@@ -149,6 +176,16 @@ export function CouponListScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.color.bg },
+  banner: {
+    margin: theme.space(4),
+    marginBottom: 0,
+    padding: theme.space(4),
+    borderRadius: theme.radius,
+    backgroundColor: "#FEF3C7",
+    gap: theme.space(1),
+  },
+  bannerTitle: { fontWeight: "700", color: theme.color.warning },
+  bannerBody: { fontSize: 13, color: theme.color.text, lineHeight: 19 },
   tabs: {
     flexDirection: 'row',
     gap: theme.space(2),

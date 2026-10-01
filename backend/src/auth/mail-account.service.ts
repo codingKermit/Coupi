@@ -3,8 +3,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { GmailProvider } from './gmail.provider';
 import { PrismaService } from '../common/prisma/prisma.service';
+import type { MailAccountStatus } from '../common/types/domain';
 
 export type DisconnectResult = 'ok' | 'not_found' | 'forbidden';
+
+/** 설정 화면이 쓰는 연결 계정 표현 (docs/06-모바일앱구조.md "설정"). */
+export interface MailAccountSummary {
+  id: string;
+  email: string;
+  status: MailAccountStatus;
+  /** 재인증이 필요한 상태인지 — 홈 배너 노출 판단에 쓴다 (docs/06-모바일앱구조.md) */
+  needsReauth: boolean;
+  connectedAt: string;
+}
 
 /**
  * 계정 연결 해제 (`docs/07-보안개인정보.md` "토큰 폐기 흐름").
@@ -25,6 +36,35 @@ export class MailAccountService {
     private readonly gmail: GmailProvider,
     private readonly encryption: EncryptionService,
   ) {}
+
+  /**
+   * 연결된 계정 목록. 토큰 컬럼은 내보내지 않는다 — 암호문이라도 밖으로 나갈 이유가 없다.
+   */
+  async list(userId: string): Promise<MailAccountSummary[]> {
+    const rows = await this.prisma.mailAccount.findMany({
+      // 연결 해제된(revoked) 계정은 감사 목적으로 30일 남지만 사용자에게는 보이지 않는다
+      // (docs/07-보안개인정보.md 토큰 폐기 흐름 5단계).
+      where: { userId, status: { not: 'revoked' } },
+      select: {
+        id: true,
+        providerAccountEmail: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map((row) => {
+      const status = (row.status ?? 'active') as MailAccountStatus;
+      return {
+        id: row.id,
+        email: row.providerAccountEmail,
+        status,
+        needsReauth: status === 'reauth_required' || status === 'auth_failed',
+        connectedAt: row.createdAt.toISOString(),
+      };
+    });
+  }
 
   async disconnect(
     userId: string,
