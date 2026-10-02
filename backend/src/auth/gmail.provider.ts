@@ -58,8 +58,11 @@ export class GmailProvider implements MailProvider {
       access_type: 'offline',
       scope: GMAIL_SCOPES,
       state,
-      // 이미 동의한 사용자에게도 refresh token을 다시 받기 위해 필요하다.
-      prompt: 'consent',
+      // select_account: 계정 선택 화면을 반드시 띄운다. consent만 주면 Google이
+      //   브라우저에 로그인된 계정을 임의로 집어 들어, 여러 계정을 쓰는 사용자가
+      //   어느 메일함을 연결할지 고를 수 없다 (2026-10-02 실기기에서 확인).
+      // consent: 이미 동의한 사용자에게도 refresh token을 다시 받기 위해 필요하다.
+      prompt: 'select_account consent',
       include_granted_scopes: true,
     });
   }
